@@ -1,0 +1,2338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LOCKHEED DACS — Xưởng Tự Lắp Ráp Tên Lửa & Đánh Chặn Mục Tiêu Di Động 3D</title>
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #050914;
+            --panel-bg: rgba(9, 15, 29, 0.88);
+            --panel-border: rgba(56, 189, 248, 0.32);
+            --cyan: #22d3ee;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+            --emerald: #10b981;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 35%, #111c35 0%, #050914 100%) !important;
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            touch-action: none;
+        }
+
+        #webgl-container {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #webgl-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        #ai-hud-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .hud-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 12px;
+        }
+
+        .hud-layer.fpv-flight-active .assembly-dock,
+        .hud-layer.fpv-flight-active .right-panel {
+            opacity: 0.14;
+            transform: scale(0.96);
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        .hud-layer.fpv-flight-active .assembly-dock:hover,
+        .hud-layer.fpv-flight-active .right-panel:hover {
+            opacity: 0.95;
+            transform: scale(1);
+        }
+
+        .fpv-btn-highlight {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.32), rgba(34, 211, 238, 0.32)) !important;
+            border: 1.5px solid #22d3ee !important;
+            color: #ecfeff !important;
+            box-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+        }
+
+        .fpv-btn-highlight.active {
+            background: linear-gradient(135deg, rgba(244, 63, 94, 0.45), rgba(245, 158, 11, 0.45)) !important;
+            border-color: #fb7185 !important;
+            box-shadow: 0 0 22px rgba(244, 63, 94, 0.5);
+        }
+
+        .top-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .hud-card {
+            pointer-events: auto;
+            background: var(--panel-bg);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 12px 14px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .brand-card {
+            width: 350px;
+            max-width: 100%;
+        }
+
+        .brand-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .brand-title {
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-badge {
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: rgba(245, 158, 11, 0.18);
+            border: 1px solid rgba(245, 158, 11, 0.55);
+            color: #fcd34d;
+            white-space: nowrap;
+        }
+
+        .status-badge.ready {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: #10b981;
+            color: #6ee7b7;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .tele-box {
+            background: rgba(3, 7, 18, 0.78);
+            border: 1px solid rgba(51, 65, 85, 0.65);
+            border-radius: 10px;
+            padding: 6px 8px;
+            text-align: center;
+        }
+
+        .tele-lbl {
+            font-size: 8.5px;
+            font-weight: 700;
+            color: var(--text-sub);
+            text-transform: uppercase;
+        }
+
+        .tele-val {
+            font-size: 15px;
+            font-weight: 900;
+            color: #fff;
+            margin-top: 2px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-wrap {
+            margin-top: 4px;
+        }
+
+        .progress-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            font-weight: 700;
+            color: #67e8f9;
+            margin-bottom: 4px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 7px;
+            background: rgba(2, 6, 23, 0.9);
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f59e0b, #22d3ee, #10b981);
+            transition: width 0.25s ease;
+        }
+
+        .mid-workspace {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+            margin: 8px 0;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .assembly-dock {
+            pointer-events: auto;
+            width: 345px;
+            max-height: 100%;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            padding-right: 4px;
+        }
+
+        .assembly-dock::-webkit-scrollbar {
+            width: 4px;
+        }
+        .assembly-dock::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.35);
+            border-radius: 99px;
+        }
+
+        .dock-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .dock-title {
+            font-size: 11px;
+            font-weight: 900;
+            color: var(--cyan);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .slot-item {
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(71, 85, 105, 0.7);
+            border-radius: 12px;
+            padding: 8px 10px;
+            transition: all 0.16s ease;
+        }
+
+        .slot-item.installed {
+            border-color: rgba(16, 185, 129, 0.75);
+            background: rgba(6, 36, 34, 0.68);
+        }
+
+        .slot-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .slot-name {
+            font-size: 11px;
+            font-weight: 800;
+            color: #f1f5f9;
+        }
+
+        .slot-tag {
+            font-size: 9px;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: rgba(244, 63, 94, 0.2);
+            color: #fda4af;
+        }
+
+        .slot-item.installed .slot-tag {
+            background: rgba(16, 185, 129, 0.25);
+            color: #6ee7b7;
+        }
+
+        .part-btns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+
+        .part-btn {
+            cursor: pointer;
+            background: rgba(9, 14, 28, 0.9);
+            border: 1px solid rgba(71, 85, 105, 0.75);
+            border-radius: 8px;
+            padding: 6px 7px;
+            color: #cbd5e1;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: left;
+            transition: all 0.14s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .part-btn:hover {
+            border-color: var(--cyan);
+            color: #fff;
+        }
+
+        .part-btn.selected {
+            background: rgba(34, 211, 238, 0.2);
+            border-color: var(--cyan);
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(34, 211, 238, 0.28);
+        }
+
+        .part-sub {
+            font-size: 8.5px;
+            color: var(--text-sub);
+            font-weight: 600;
+        }
+
+        .right-panel {
+            pointer-events: auto;
+            width: 270px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .target-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .tgt-btn {
+            cursor: pointer;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(71, 85, 105, 0.75);
+            border-radius: 9px;
+            padding: 7px 10px;
+            color: #e2e8f0;
+            font-size: 10.5px;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.15s ease;
+        }
+
+        .tgt-btn.active, .tgt-btn:hover {
+            background: rgba(244, 63, 94, 0.2);
+            border-color: #f43f5e;
+            color: #fff;
+        }
+
+        .bottom-bar {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .toast-banner {
+            pointer-events: auto;
+            background: rgba(9, 15, 29, 0.92);
+            border: 1px solid rgba(34, 211, 238, 0.5);
+            border-radius: 999px;
+            padding: 6px 16px;
+            font-size: 11.5px;
+            font-weight: 700;
+            color: #e0f2fe;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+        }
+
+        .flight-deck {
+            pointer-events: auto;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            max-width: 980px;
+        }
+
+        .deck-btn {
+            cursor: pointer;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(71, 85, 105, 0.8);
+            border-radius: 12px;
+            padding: 8px 12px;
+            color: #f8fafc;
+            font-size: 11px;
+            font-weight: 800;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            min-width: 88px;
+            min-height: 46px;
+            transition: all 0.12s ease;
+        }
+
+        .deck-btn:active, .deck-btn.pressed {
+            transform: scale(0.95);
+            background: rgba(34, 211, 238, 0.25);
+            border-color: var(--cyan);
+        }
+
+        .launch-btn {
+            background: linear-gradient(135deg, rgba(225, 29, 72, 0.45), rgba(180, 83, 9, 0.45));
+            border: 1.5px solid rgba(251, 113, 133, 0.85);
+            min-width: 195px;
+            color: #fff;
+            box-shadow: 0 0 22px rgba(244, 63, 94, 0.35);
+        }
+
+        .launch-btn.locked {
+            opacity: 0.48;
+            filter: grayscale(0.6);
+            box-shadow: none;
+        }
+
+        .homing-btn.active {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(6, 182, 212, 0.35));
+            border-color: #34d399;
+            color: #a7f3d0;
+        }
+
+        @media (max-width: 920px) {
+            .right-panel { display: none; }
+            .assembly-dock { width: 290px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="webgl-container"></div>
+    <canvas id="ai-hud-canvas"></canvas>
+
+    <div class="hud-layer" id="main-hud-layer">
+        <div class="top-bar">
+            <!-- Top Left: Missile Lab Telemetry -->
+            <div class="hud-card brand-card">
+                <div class="brand-head">
+                    <div class="brand-title">
+                        <span>🚀 LOCKHEED DACS MISSILE LAB</span>
+                    </div>
+                    <span id="assembly-badge" class="status-badge">CHƯA LẮP RÁP (0/6)</span>
+                </div>
+
+                <div class="telemetry-grid">
+                    <div class="tele-box">
+                        <div class="tele-lbl">VẬN TỐC</div>
+                        <div id="hud-mach" class="tele-val" style="color:#38bdf8;">0.0 M</div>
+                    </div>
+                    <div class="tele-box">
+                        <div class="tele-lbl">CỰ LY MỤC TIÊU</div>
+                        <div id="hud-dist" class="tele-val" style="color:#fb7185;">-- M</div>
+                    </div>
+                    <div class="tele-box">
+                        <div class="tele-lbl">KHỐI LƯỢNG</div>
+                        <div id="hud-mass" class="tele-val">0 KG</div>
+                    </div>
+                    <div class="tele-box">
+                        <div class="tele-lbl">ĐÁNH CHẶN</div>
+                        <div id="hud-hits" class="tele-val" style="color:#34d399;">0</div>
+                    </div>
+                </div>
+
+                <div class="progress-wrap">
+                    <div class="progress-head">
+                        <span>🔧 TIẾN ĐỘ LẮP RÁP MÔ-ĐUN TÊN LỬA</span>
+                        <span id="assembly-pct-txt">0 / 6 BỘ PHẬN</span>
+                    </div>
+                    <div class="progress-track">
+                        <div id="assembly-bar" class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Right Quick Actions -->
+            <div class="hud-card" style="display:flex; gap:7px; align-items:center; flex-wrap:wrap;">
+                <button id="btn-cam" class="tgt-btn fpv-btn-highlight active">
+                    <span id="cam-txt">🎥 GÓC NHÌN: THỨ 3 BÁM ĐUÔI TÊN LỬA [C / V]</span>
+                </button>
+                <button id="btn-angle" class="tgt-btn" style="border-color:#38bdf8;">
+                    <span id="angle-txt">📐 BỆ PHÓNG: NGHIÊNG 52° (ẢNH 1)</span>
+                </button>
+                <button id="btn-sound" class="tgt-btn">
+                    <span id="sound-txt">🔊 ÂM THANH</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="mid-workspace">
+            <!-- Left Dock: 6 Mandatory DIY Rocket Assembly Slots -->
+            <div class="hud-card assembly-dock" id="assembly-panel">
+                <div class="dock-header">
+                    <span class="dock-title">🛠️ LẮP RÁP TỪNG BỘ PHẬN (BẮT BUỘC)</span>
+                    <button id="btn-clear-all" style="cursor:pointer; background:rgba(244,63,94,0.18); border:1px solid #f43f5e; color:#fda4af; font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px;">
+                        THÁO RỜI HẾT
+                    </button>
+                </div>
+
+                <!-- Slot 1: Engine Nozzle -->
+                <div class="slot-item" id="slot-card-engine">
+                    <div class="slot-top">
+                        <span class="slot-name">1. VÒI PHUN ĐỘNG CƠ ĐẨY CHÍNH</span>
+                        <span class="slot-tag" id="tag-engine">CHƯA LẮP</span>
+                    </div>
+                    <div class="part-btns">
+                        <button class="part-btn" data-slot="engine" data-type="solid">
+                            <span>🔥 Lửa Vàng Rực (Ảnh 1, 3, 5)</span>
+                            <span class="part-sub">Lực đẩy 42kN • Cột khói lớn</span>
+                        </button>
+                        <button class="part-btn" data-slot="engine" data-type="plasma">
+                            <span>⚡ Lửa Xanh Trắng (Ảnh 2)</span>
+                            <span class="part-sub">Lực đẩy 50kN • Bay Mach 5.5</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Slot 2: Tail Fins -->
+                <div class="slot-item" id="slot-card-tailFins">
+                    <div class="slot-top">
+                        <span class="slot-name">2. CÁNH ĐUÔI KHÍ ĐỘNG HỌC</span>
+                        <span class="slot-tag" id="tag-tailFins">CHƯA LẮP</span>
+                    </div>
+                    <div class="part-btns">
+                        <button class="part-btn" data-slot="tailFins" data-type="qcc">
+                            <span>📐 Cánh Đuôi QCC Đỏ-Trắng (Ảnh 4)</span>
+                            <span class="part-sub">Ổn định quỹ đạo cao</span>
+                        </button>
+                        <button class="part-btn" data-slot="tailFins" data-type="tactical">
+                            <span>🦅 Cánh Chữ Thập Đen (Ảnh 1, 2)</span>
+                            <span class="part-sub">Cơ động bám mục tiêu gắt</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Slot 3: Main Fuel Body Tube -->
+                <div class="slot-item" id="slot-card-fuselage">
+                    <div class="slot-top">
+                        <span class="slot-name">3. THÂN NHIÊN LIỆU CHÍNH</span>
+                        <span class="slot-tag" id="tag-fuselage">CHƯA LẮP</span>
+                    </div>
+                    <div class="part-btns">
+                        <button class="part-btn" data-slot="fuselage" data-type="white">
+                            <span>🚀 Thân Trắng Explorer (Ảnh 3, 4)</span>
+                            <span class="part-sub">Nhiên liệu rắn tầm xa</span>
+                        </button>
+                        <button class="part-btn" data-slot="fuselage" data-type="stealth">
+                            <span>🛡️ Thân Xám Vạch Vàng-Đỏ (Ảnh 2)</span>
+                            <span class="part-sub">Vỏ hợp kim giảm cản gió</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Slot 4: Side Intake Strakes / Boosters -->
+                <div class="slot-item" id="slot-card-strakes">
+                    <div class="slot-top">
+                        <span class="slot-name">4. ỐNG DẪN KHÍ & ĐẨY PHỤ HÔNG</span>
+                        <span class="slot-tag" id="tag-strakes">CHƯA LẮP</span>
+                    </div>
+                    <div class="part-btns">
+                        <button class="part-btn" data-slot="strakes" data-type="qccStrakes">
+                            <span>✈️ 4 Cánh Dẫn Khí QCC (Ảnh 4)</span>
+                            <span class="part-sub">Tăng lực nâng dọc thân</span>
+                        </button>
+                        <button class="part-btn" data-slot="strakes" data-type="boosters">
+                            <span>🧨 2 Ống Đẩy Phụ (Ảnh 5)</span>
+                            <span class="part-sub">Tăng gia tốc vọt đầu</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Slot 5: Lockheed DACS Lateral O2 Thruster Ring -->
+                <div class="slot-item" id="slot-card-dacs">
+                    <div class="slot-top">
+                        <span class="slot-name">5. KHOANG PHUN KHÍ O₂ NGANG DACS</span>
+                        <span class="slot-tag" id="tag-dacs">CHƯA LẮP</span>
+                    </div>
+                    <div class="part-btns">
+                        <button class="part-btn" data-slot="dacs" data-type="ring8">
+                            <span>💨 Vòng 8 Vòi O₂ Lockheed</span>
+                            <span class="part-sub">Phun khí O₂ bẻ hướng 360°</span>
+                        </button>
+                        <button class="part-btn" data-slot="dacs" data-type="canard">
+                            <span>💨 DACS + Cánh Nâu (Ảnh 1, 3)</span>
+                            <span class="part-sub">Phun O₂ + Cánh mũi Canard</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Slot 6: Nose Cone & Radar Seeker -->
+                <div class="slot-item" id="slot-card-nose">
+                    <div class="slot-top">
+                        <span class="slot-name">6. MŨI DÒ MỤC TIÊU & ĐẦU ĐẠN</span>
+                        <span class="slot-tag" id="tag-nose">CHƯA LẮP</span>
+                    </div>
+                    <div class="part-btns">
+                        <button class="part-btn" data-slot="nose" data-type="redOgive">
+                            <span>🎯 Mũi Nhọn Đỏ QCC (Ảnh 4)</span>
+                            <span class="part-sub">Radar chủ động khóa UAV</span>
+                        </button>
+                        <button class="part-btn" data-slot="nose" data-type="radome">
+                            <span>📡 Mũi Radome Quân Sự (Ảnh 2)</span>
+                            <span class="part-sub">Đầu dò tầm nhiệt đa phổ</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hud-card right-panel">
+                <div class="dock-title">🎯 CHỌN MỤC TIÊU DI ĐỘNG ĐỂ BẮN</div>
+                <div class="target-selector">
+                    <button class="tgt-btn active" data-target="drone">
+                        <span>✈️ UAV Phản Lực Siêu Thanh</span>
+                        <span style="font-size:9px; color:#fda4af;">BAY TRÊN KHÔNG</span>
+                    </button>
+                    <button class="tgt-btn" data-target="cruise">
+                        <span>🚀 Tên Lửa Hành Trình Địch</span>
+                        <span style="font-size:9px; color:#fcd34d;">CƠ ĐỘNG GẮT</span>
+                    </button>
+                    <button class="tgt-btn" data-target="convoy">
+                        <span>🚛 Xe Bệ Phóng Di Động</span>
+                        <span style="font-size:9px; color:#6ee7b7;">CHẠY DƯỚI ĐẤT</span>
+                    </button>
+                </div>
+
+                <div style="border-top:1px solid rgba(51,65,85,0.6); padding-top:8px; margin-top:2px;">
+                    <div class="dock-title" style="margin-bottom:6px;">💨 SƠ ĐỒ PHUN O₂ NGANG LOCKHEED DACS</div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                        <svg width="86" height="86" viewBox="0 0 86 86" style="background:rgba(3,7,18,0.85); border:1px solid rgba(56,189,248,0.3); border-radius:12px; flex-shrink:0;">
+                            <circle cx="43" cy="43" r="18" fill="rgba(15,23,42,0.95)" stroke="#64748b" stroke-width="2"/>
+                            <circle cx="43" cy="43" r="5" fill="#f43f5e"/>
+                            <!-- Top O2 Jet (Pushes Nose Down) -->
+                            <polygon id="dacs-svg-up" points="43,4 37,22 49,22" fill="#38bdf8" opacity="0.2"/>
+                            <!-- Bottom O2 Jet (Pushes Nose Up) -->
+                            <polygon id="dacs-svg-down" points="43,82 37,64 49,64" fill="#38bdf8" opacity="0.2"/>
+                            <!-- Left O2 Jet (Pushes Nose Right) -->
+                            <polygon id="dacs-svg-left" points="4,43 22,37 22,49" fill="#38bdf8" opacity="0.2"/>
+                            <!-- Right O2 Jet (Pushes Nose Left) -->
+                            <polygon id="dacs-svg-right" points="82,43 64,37 64,49" fill="#38bdf8" opacity="0.2"/>
+                        </svg>
+                        <div style="font-size:10px; color:#cbd5e1; line-height:1.45;">
+                            Khi đang bay, bấm <strong>W/S/A/D</strong> hoặc bật <strong>Khóa Radar Tự Động [F]</strong> để phụt tia khí Oxy trắng vuông góc thân tên lửa, bẻ mũi lao thẳng vào mục tiêu di động.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-bar">
+            <div id="status-toast" class="toast-banner">
+                🛠️ Bệ phóng đang trống! Hãy bấm chọn từng bộ phận từ 1 đến 6 ở bảng bên trái để tự tay lắp ráp tên lửa.
+            </div>
+
+            <div class="hud-card flight-deck">
+                <button id="btn-launch" class="deck-btn launch-btn locked">
+                    <span id="launch-main-txt" style="font-size:12.5px;">🔒 CẦN LẮP ĐỦ 6 BỘ PHẬN</span>
+                    <span id="launch-sub-txt" style="font-size:9px; color:#fecdd3;">Lắp đủ 6 mô-đun để mở khóa [SPACE]</span>
+                </button>
+
+                <button id="btn-homing" class="deck-btn homing-btn active">
+                    <span>🎯 RADAR DACS TỰ BÁM: BẬT</span>
+                    <span style="font-size:9px; color:#94a3b8;">Phím [F] Tự Phun O₂ Đuổi Mục Tiêu</span>
+                </button>
+
+                <button id="ctrl-pitch-up" class="deck-btn">
+                    <span style="color:#38bdf8;">▲ NGẩNG MŨI [W]</span>
+                    <span style="font-size:8.5px; color:#94a3b8;">Phun O₂ Bụng</span>
+                </button>
+
+                <button id="ctrl-pitch-down" class="deck-btn">
+                    <span style="color:#38bdf8;">▼ CHÚI MŨI [S]</span>
+                    <span style="font-size:8.5px; color:#94a3b8;">Phun O₂ Lưng</span>
+                </button>
+
+                <button id="ctrl-yaw-left" class="deck-btn">
+                    <span style="color:#38bdf8;">◀ NGOẶT TRÁI [A]</span>
+                    <span style="font-size:8.5px; color:#94a3b8;">Phun O₂ Phải</span>
+                </button>
+
+                <button id="ctrl-yaw-right" class="deck-btn">
+                    <span style="color:#38bdf8;">▶ NGOẶT PHẢI [D]</span>
+                    <span style="font-size:8.5px; color:#94a3b8;">Phun O₂ Trải</span>
+                </button>
+
+                <button id="btn-reset-pad" class="deck-btn" style="border-color:#f59e0b;">
+                    <span style="color:#fcd34d;">🔄 VỀ BỆ LẮP RÁP [R]</span>
+                    <span style="font-size:8.5px; color:#94a3b8;">Chỉnh sửa / Phóng lại</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const AudioEngine = {
+                ctx: null,
+                muted: false,
+                rocketGain: null,
+                dacsGain: null,
+
+                init: function () {
+                    if (this.ctx) return;
+                    try {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (!AudioCtx) return;
+                        this.ctx = new AudioCtx();
+
+                        const bufSize = this.ctx.sampleRate * 2;
+                        const noiseBuf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+                        const ch = noiseBuf.getChannelData(0);
+                        for (let i = 0; i < bufSize; i++) ch[i] = Math.random() * 2 - 1;
+
+                        const rocketSrc = this.ctx.createBufferSource();
+                        rocketSrc.buffer = noiseBuf;
+                        rocketSrc.loop = true;
+                        const lowFilter = this.ctx.createBiquadFilter();
+                        lowFilter.type = "lowpass";
+                        lowFilter.frequency.value = 340;
+                        this.rocketGain = this.ctx.createGain();
+                        this.rocketGain.gain.value = 0;
+                        rocketSrc.connect(lowFilter);
+                        lowFilter.connect(this.rocketGain);
+                        this.rocketGain.connect(this.ctx.destination);
+                        rocketSrc.start();
+
+                        const dacsSrc = this.ctx.createBufferSource();
+                        dacsSrc.buffer = noiseBuf;
+                        dacsSrc.loop = true;
+                        const bandFilter = this.ctx.createBiquadFilter();
+                        bandFilter.type = "bandpass";
+                        bandFilter.frequency.value = 1400;
+                        bandFilter.Q.value = 1.2;
+                        this.dacsGain = this.ctx.createGain();
+                        this.dacsGain.gain.value = 0;
+                        dacsSrc.connect(bandFilter);
+                        bandFilter.connect(this.dacsGain);
+                        this.dacsGain.connect(this.ctx.destination);
+                        dacsSrc.start();
+                    } catch (e) {
+                        console.warn("WebAudio skipped:", e);
+                    }
+                },
+
+                playSnapSound: function (pitchOffset) {
+                    this.init();
+                    if (!this.ctx || this.muted) return;
+                    try {
+                        const now = this.ctx.currentTime;
+                        const osc = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        osc.type = "triangle";
+                        osc.frequency.setValueAtTime(260 + (pitchOffset || 0) * 55, now);
+                        osc.frequency.exponentialRampToValueAtTime(680 + (pitchOffset || 0) * 80, now + 0.14);
+                        g.gain.setValueAtTime(0.18, now);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                        osc.connect(g);
+                        g.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.17);
+                    } catch (e) {}
+                },
+
+                playExplosionSound: function () {
+                    this.init();
+                    if (!this.ctx || this.muted) return;
+                    try {
+                        const now = this.ctx.currentTime;
+                        const osc = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        osc.type = "sawtooth";
+                        osc.frequency.setValueAtTime(130, now);
+                        osc.frequency.exponentialRampToValueAtTime(22, now + 0.65);
+                        g.gain.setValueAtTime(0.32, now);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + 0.68);
+                        osc.connect(g);
+                        g.connect(this.ctx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.7);
+                    } catch (e) {}
+                },
+
+                updateFlightLoop: function (isFlying, isDacsFiring) {
+                    if (!this.ctx) return;
+                    const now = this.ctx.currentTime;
+                    if (this.muted) {
+                        this.rocketGain.gain.setTargetAtTime(0, now, 0.05);
+                        this.dacsGain.gain.setTargetAtTime(0, now, 0.05);
+                        return;
+                    }
+                    this.rocketGain.gain.setTargetAtTime(isFlying ? 0.24 : 0, now, 0.06);
+                    this.dacsGain.gain.setTargetAtTime(isDacsFiring ? 0.16 : 0, now, 0.03);
+                }
+            };
+
+            const container = document.getElementById("webgl-container");
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x060b18);
+            scene.fog = new THREE.FogExp2(0x060b18, 0.0014);
+
+            const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+            const renderCanvas = document.createElement("canvas");
+            container.appendChild(renderCanvas);
+
+            let renderer = null;
+            let fallbackCtx = null;
+            let useSoftware3D = false;
+
+            (function initSafeRenderer() {
+                let gl = null;
+                const attrs = [
+                    { alpha: false, antialias: true, failIfMajorPerformanceCaveat: false },
+                    { alpha: false, antialias: false, failIfMajorPerformanceCaveat: false },
+                    {}
+                ];
+                for (let i = 0; i < attrs.length && !gl; i++) {
+                    try {
+                        gl = renderCanvas.getContext("webgl2", attrs[i]) ||
+                             renderCanvas.getContext("webgl", attrs[i]) ||
+                             renderCanvas.getContext("experimental-webgl", attrs[i]);
+                    } catch (e) { gl = null; }
+                }
+                if (gl) {
+                    try {
+                        renderer = new THREE.WebGLRenderer({ canvas: renderCanvas, context: gl, antialias: true });
+                        renderer.setSize(window.innerWidth, window.innerHeight);
+                        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                        renderer.setClearColor(0x060b18, 1);
+                    } catch (e) { renderer = null; }
+                }
+                if (!renderer) {
+                    useSoftware3D = true;
+                    const freshCanvas = document.createElement("canvas");
+                    container.replaceChild(freshCanvas, renderCanvas);
+                    fallbackCtx = freshCanvas.getContext("2d");
+                    fallbackCtx.canvas.width = window.innerWidth;
+                    fallbackCtx.canvas.height = window.innerHeight;
+                }
+            })();
+
+            const activeCanvas = renderer ? renderer.domElement : fallbackCtx.canvas;
+
+            const ambientLight = new THREE.AmbientLight(0xdbeafe, 0.78);
+            scene.add(ambientLight);
+            const sunLight = new THREE.DirectionalLight(0xfffbeb, 1.35);
+            sunLight.position.set(60, 120, 80);
+            scene.add(sunLight);
+
+            function createRadialPuffTexture() {
+                const c = document.createElement("canvas");
+                c.width = 128; c.height = 128;
+                const ctx = c.getContext("2d");
+                const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 60);
+                g.addColorStop(0, "rgba(255, 255, 255, 0.98)");
+                g.addColorStop(0.38, "rgba(255, 240, 215, 0.72)");
+                g.addColorStop(0.75, "rgba(200, 215, 235, 0.25)");
+                g.addColorStop(1, "rgba(150, 170, 200, 0)");
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, 128, 128);
+                return new THREE.CanvasTexture(c);
+            }
+            const puffTexture = createRadialPuffTexture();
+
+            const worldGroup = new THREE.Group();
+            scene.add(worldGroup);
+
+            const groundMesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(2400, 2400),
+                new THREE.MeshStandardMaterial({ color: 0x09101f, roughness: 0.65, metalness: 0.2 })
+            );
+            groundMesh.rotation.x = -Math.PI / 2;
+            worldGroup.add(groundMesh);
+
+            const gridHelper = new THREE.GridHelper(1200, 120, 0x1e3a8a, 0x0f172a);
+            gridHelper.position.y = 0.05;
+            worldGroup.add(gridHelper);
+
+            const launchPadGroup = new THREE.Group();
+            launchPadGroup.position.set(0, 0, 0);
+            worldGroup.add(launchPadGroup);
+
+            const padConcrete = new THREE.Mesh(
+                new THREE.CylinderGeometry(8.5, 9.5, 0.5, 32),
+                new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 })
+            );
+            padConcrete.position.y = 0.25;
+            launchPadGroup.add(padConcrete);
+
+            const padWarnRing = new THREE.Mesh(
+                new THREE.RingGeometry(7.8, 8.3, 32),
+                new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide })
+            );
+            padWarnRing.rotation.x = -Math.PI / 2;
+            padWarnRing.position.y = 0.52;
+            launchPadGroup.add(padWarnRing);
+
+            const launcherPivot = new THREE.Group();
+            launcherPivot.position.set(0, 2.2, 0);
+            launchPadGroup.add(launcherPivot);
+
+            const railBeam = new THREE.Mesh(
+                new THREE.BoxGeometry(0.45, 11.5, 0.45),
+                new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.35 })
+            );
+            railBeam.position.set(-1.15, 4.2, 0);
+            launcherPivot.add(railBeam);
+
+            const missileRoot = new THREE.Group();
+            scene.add(missileRoot);
+
+            const blueprintGhostGroup = new THREE.Group();
+            missileRoot.add(blueprintGhostGroup);
+
+            const ghostWireMat = new THREE.MeshBasicMaterial({
+                color: 0x22d3ee,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.24
+            });
+
+            const ghostCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 7.6, 12, 6), ghostWireMat);
+            ghostCyl.position.y = 4.6;
+            blueprintGhostGroup.add(ghostCyl);
+
+            const ghostNose = new THREE.Mesh(new THREE.ConeGeometry(0.42, 2.2, 12), ghostWireMat);
+            ghostNose.position.y = 9.5;
+            blueprintGhostGroup.add(ghostNose);
+
+            const moduleGroups = {
+                engine: new THREE.Group(),
+                tailFins: new THREE.Group(),
+                fuselage: new THREE.Group(),
+                strakes: new THREE.Group(),
+                dacs: new THREE.Group(),
+                nose: new THREE.Group()
+            };
+            Object.keys(moduleGroups).forEach(function (k) {
+                missileRoot.add(moduleGroups[k]);
+            });
+
+            const matWhite = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.22, metalness: 0.18 });
+            const matSilver = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.28, metalness: 0.65 });
+            const matDarkGrey = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.32, metalness: 0.72 });
+            const matNozzleBlack = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4, metalness: 0.8 });
+            const matRed = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.25, metalness: 0.2 });
+            const matBrownStage = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.35, metalness: 0.3 });
+            const matYellowBand = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+            const matRadomeTan = new THREE.MeshStandardMaterial({ color: 0xe2d9c8, roughness: 0.3 });
+
+            function clearGroup(grp) {
+                while (grp.children.length > 0) grp.remove(grp.children[0]);
+            }
+
+            function buildModuleMesh(slotName, partType) {
+                const grp = moduleGroups[slotName];
+                clearGroup(grp);
+                if (!partType) return;
+
+                if (slotName === "engine") {
+                    const collar = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.42, 0.42, 0.55, 20),
+                        partType === "solid" ? matNozzleBlack : matDarkGrey
+                    );
+                    collar.position.y = 0.92;
+                    grp.add(collar);
+
+                    const bell = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.26, 0.40, 0.65, 20),
+                        matNozzleBlack
+                    );
+                    bell.position.y = 0.32;
+                    grp.add(bell);
+                } else if (slotName === "tailFins") {
+                    for (let i = 0; i < 4; i++) {
+                        const finHolder = new THREE.Group();
+                        finHolder.rotation.y = (i * Math.PI) / 2;
+                        const finPlate = new THREE.Mesh(
+                            new THREE.BoxGeometry(1.15, 1.35, 0.06),
+                            partType === "qcc" ? matWhite : matDarkGrey
+                        );
+                        finPlate.position.set(0.72, 1.65, 0);
+                        finPlate.rotation.z = -0.18;
+                        finHolder.add(finPlate);
+
+                        const tipTrim = new THREE.Mesh(
+                            new THREE.BoxGeometry(0.18, 1.25, 0.075),
+                            partType === "qcc" ? matRed : matYellowBand
+                        );
+                        tipTrim.position.set(1.22, 1.60, 0);
+                        tipTrim.rotation.z = -0.18;
+                        finHolder.add(tipTrim);
+
+                        grp.add(finHolder);
+                    }
+                } else if (slotName === "fuselage") {
+                    const tube = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.42, 0.42, 4.8, 24),
+                        partType === "white" ? matWhite : matDarkGrey
+                    );
+                    tube.position.y = 3.6;
+                    grp.add(tube);
+
+                    const band1 = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.426, 0.426, 0.16, 24),
+                        partType === "white" ? matNozzleBlack : matYellowBand
+                    );
+                    band1.position.y = 5.85;
+                    grp.add(band1);
+
+                    const band2 = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.426, 0.426, 0.14, 24),
+                        matRed
+                    );
+                    band2.position.y = 4.65;
+                    grp.add(band2);
+                } else if (slotName === "strakes") {
+                    if (partType === "qccStrakes") {
+                        for (let i = 0; i < 4; i++) {
+                            const sh = new THREE.Group();
+                            sh.rotation.y = (i * Math.PI) / 2 + Math.PI / 4;
+                            const strake = new THREE.Mesh(new THREE.BoxGeometry(0.22, 3.3, 0.18), matWhite);
+                            strake.position.set(0.48, 3.05, 0);
+                            sh.add(strake);
+
+                            const redStripe = new THREE.Mesh(new THREE.BoxGeometry(0.24, 2.8, 0.06), matRed);
+                            redStripe.position.set(0.50, 3.05, 0);
+                            sh.add(redStripe);
+                            grp.add(sh);
+                        }
+                    } else {
+                        [-0.72, 0.72].forEach(function (bx) {
+                            const bCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 3.6, 16), matWhite);
+                            bCyl.position.set(bx, 3.0, 0);
+                            grp.add(bCyl);
+                            const bCone = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.75, 16), matRed);
+                            bCone.position.set(bx, 5.18, 0);
+                            grp.add(bCone);
+                        });
+                    }
+                } else if (slotName === "dacs") {
+                    const upperTube = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.42, 0.42, 2.4, 24),
+                        partType === "canard" ? matBrownStage : matSilver
+                    );
+                    upperTube.position.y = 7.2;
+                    grp.add(upperTube);
+
+                    const dacsRing = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.435, 0.435, 0.28, 24),
+                        matNozzleBlack
+                    );
+                    dacsRing.position.y = 7.35;
+                    grp.add(dacsRing);
+
+                    if (partType === "canard") {
+                        for (let i = 0; i < 4; i++) {
+                            const ch = new THREE.Group();
+                            ch.rotation.y = (i * Math.PI) / 2;
+                            const canard = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.65, 0.05), matNozzleBlack);
+                            canard.position.set(0.52, 6.75, 0);
+                            ch.add(canard);
+                            grp.add(ch);
+                        }
+                    }
+                } else if (slotName === "nose") {
+                    const cone = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.42, 2.35, 24),
+                        partType === "redOgive" ? matRed : matRadomeTan
+                    );
+                    cone.position.y = 9.57;
+                    grp.add(cone);
+
+                    const baseRing = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.424, 0.424, 0.14, 24),
+                        matNozzleBlack
+                    );
+                    baseRing.position.y = 8.42;
+                    grp.add(baseRing);
+                }
+            }
+
+            const mainFlameGroup = new THREE.Group();
+            missileRoot.add(mainFlameGroup);
+
+            const innerCoreMesh = new THREE.Mesh(
+                new THREE.ConeGeometry(0.32, 6.5, 16),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.96 })
+            );
+            innerCoreMesh.rotation.x = Math.PI;
+            innerCoreMesh.position.y = -3.25;
+            mainFlameGroup.add(innerCoreMesh);
+
+            const outerFlameMesh = new THREE.Mesh(
+                new THREE.ConeGeometry(0.68, 9.8, 16),
+                new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.68 })
+            );
+            outerFlameMesh.rotation.x = Math.PI;
+            outerFlameMesh.position.y = -4.9;
+            mainFlameGroup.add(outerFlameMesh);
+            mainFlameGroup.visible = false;
+
+            function createDacsLateralJet(dirX, dirZ) {
+                const jg = new THREE.Group();
+                jg.position.set(dirX * 0.42, 7.35, dirZ * 0.42);
+                const len = 3.2;
+
+                const core = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.14, len, 12),
+                    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.94 })
+                );
+                const mist = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.38, len * 1.15, 12),
+                    new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.48 })
+                );
+
+                if (dirX !== 0) {
+                    core.rotation.z = dirX > 0 ? Math.PI / 2 : -Math.PI / 2;
+                    core.position.x = dirX * (len * 0.5);
+                    mist.rotation.z = core.rotation.z;
+                    mist.position.x = dirX * (len * 0.56);
+                } else {
+                    core.rotation.x = dirZ > 0 ? -Math.PI / 2 : Math.PI / 2;
+                    core.position.z = dirZ * (len * 0.5);
+                    mist.rotation.x = core.rotation.x;
+                    mist.position.z = dirZ * (len * 0.56);
+                }
+                jg.add(core, mist);
+                jg.visible = false;
+                missileRoot.add(jg);
+                return jg;
+            }
+
+            const dacsJetRight = createDacsLateralJet(1, 0);
+            const dacsJetLeft  = createDacsLateralJet(-1, 0);
+            const dacsJetUp    = createDacsLateralJet(0, 1);
+            const dacsJetDown  = createDacsLateralJet(0, -1);
+
+            const targetRoot = new THREE.Group();
+            scene.add(targetRoot);
+
+            const tgtRedMat = new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.25, metalness: 0.5 });
+            const tgtDarkMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 });
+            const tgtCockpitMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+            const tgtGlowMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee, wireframe: true });
+
+            const tgtBody = new THREE.Mesh(new THREE.ConeGeometry(1.15, 6.4, 16), tgtRedMat);
+            tgtBody.rotation.x = Math.PI / 2;
+            targetRoot.add(tgtBody);
+
+            const tgtWings = new THREE.Mesh(new THREE.BoxGeometry(7.8, 0.18, 2.4), tgtDarkMat);
+            tgtWings.position.set(0, 0, -0.4);
+            targetRoot.add(tgtWings);
+
+            const tailLeft = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.65, 1.4), tgtRedMat);
+            tailLeft.position.set(-1.35, 0.75, -2.1);
+            tailLeft.rotation.z = 0.22;
+            targetRoot.add(tailLeft);
+
+            const tailRight = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.65, 1.4), tgtRedMat);
+            tailRight.position.set(1.35, 0.75, -2.1);
+            tailRight.rotation.z = -0.22;
+            targetRoot.add(tailRight);
+
+            const canopyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.55, 2.1), tgtCockpitMat);
+            canopyMesh.position.set(0, 0.55, 0.6);
+            targetRoot.add(canopyMesh);
+
+            const tgtAfterburner = new THREE.Mesh(
+                new THREE.ConeGeometry(0.65, 3.8, 12),
+                new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.9 })
+            );
+            tgtAfterburner.rotation.x = -Math.PI / 2;
+            tgtAfterburner.position.set(0, 0, -4.8);
+            targetRoot.add(tgtAfterburner);
+
+            const targetLockRing = new THREE.Mesh(new THREE.RingGeometry(3.2, 3.6, 4), tgtGlowMat);
+            targetRoot.add(targetLockRing);
+
+            const smokePool = [];
+            const MAX_PARTICLES = 180;
+            const particleGroup = new THREE.Group();
+            scene.add(particleGroup);
+
+            for (let i = 0; i < MAX_PARTICLES; i++) {
+                const mat = new THREE.SpriteMaterial({
+                    map: puffTexture,
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0,
+                    depthWrite: false
+                });
+                const sp = new THREE.Sprite(mat);
+                sp.visible = false;
+                particleGroup.add(sp);
+                smokePool.push({
+                    sprite: sp,
+                    active: false,
+                    vx: 0, vy: 0, vz: 0,
+                    age: 0, maxAge: 1,
+                    startScale: 1, endScale: 5
+                });
+            }
+
+            let smokeIdx = 0;
+            function spawnSmoke(x, y, z, vx, vy, vz, s0, s1, maxAge, hexColor) {
+                const p = smokePool[smokeIdx];
+                smokeIdx = (smokeIdx + 1) % MAX_PARTICLES;
+                p.active = true;
+                p.age = 0;
+                p.maxAge = maxAge;
+                p.vx = vx; p.vy = vy; p.vz = vz;
+                p.startScale = s0; p.endScale = s1;
+                p.sprite.position.set(x, y, z);
+                p.sprite.scale.set(s0, s0, 1);
+                p.sprite.material.color.setHex(hexColor || 0xffffff);
+                p.sprite.material.opacity = 0.78;
+                p.sprite.visible = true;
+            }
+
+            const REQUIRED_SLOTS = ["engine", "tailFins", "fuselage", "strakes", "dacs", "nose"];
+
+            const sim = {
+                installed: {
+                    engine: null,
+                    tailFins: null,
+                    fuselage: null,
+                    strakes: null,
+                    dacs: null,
+                    nose: null
+                },
+                slotSlideOffset: {
+                    engine: 0, tailFins: 0, fuselage: 0, strakes: 0, dacs: 0, nose: 0
+                },
+                launchElevationDeg: 52,
+                autoHoming: true,
+                phase: "ASSEMBLY",
+                explodeTimer: 0,
+                interceptCount: 0,
+
+                pos: new THREE.Vector3(0, 2.2, 0),
+                vel: new THREE.Vector3(0, 0, 0),
+                dir: new THREE.Vector3(0, 0.78, -0.62).normalize(),
+                speed: 0,
+
+                targetType: "drone",
+                targetPos: new THREE.Vector3(0, 65, -240),
+                targetVel: new THREE.Vector3(28, 0, 0),
+                targetPhase: 0,
+
+                camMode: 0,
+                chaseCamDir: new THREE.Vector3(0, 0.78, -0.62).normalize(),
+                flightTime: 0,
+                aiState: "STANDBY",
+                aiConfidence: 0.985,
+                closureRate: 0,
+                tti: 0,
+                lastImpactPos: new THREE.Vector3(),
+                camTheta: 0.58,
+                camPhi: 0.28,
+                camDist: 15.5,
+                dragging: false,
+                lastX: 0,
+                lastY: 0
+            };
+
+            const keys = { w: false, s: false, a: false, d: false };
+
+            const CAM_NAMES = [
+                "🎥 GÓC NHÌN: THỨ 3 BÁM ĐUÔI TÊN LỬA [C / V]",
+                "👁️ GÓC NHÌN: THỨ 1 ĐẦU DÒ AI (FPV) [C / V]",
+                "🔄 GÓC NHÌN: XOAY TỰ DO 360° [C / V]",
+                "🎬 GÓC NHÌN: NGANG HÀNH TRÌNH [C / V]"
+            ];
+
+            function getInstalledCount() {
+                let c = 0;
+                REQUIRED_SLOTS.forEach(function (k) {
+                    if (sim.installed[k]) c++;
+                });
+                return c;
+            }
+
+            function computeMissileMass() {
+                let m = 0;
+                if (sim.installed.engine) m += sim.installed.engine === "solid" ? 145 : 120;
+                if (sim.installed.tailFins) m += 42;
+                if (sim.installed.fuselage) m += sim.installed.fuselage === "white" ? 310 : 280;
+                if (sim.installed.strakes) m += sim.installed.strakes === "boosters" ? 190 : 65;
+                if (sim.installed.dacs) m += 85;
+                if (sim.installed.nose) m += 58;
+                return m;
+            }
+
+            function updateAssemblyUI() {
+                const count = getInstalledCount();
+                const pct = Math.round((count / 6) * 100);
+                document.getElementById("assembly-bar").style.width = pct + "%";
+                document.getElementById("assembly-pct-txt").textContent = count + " / 6 BỘ PHẬN";
+                document.getElementById("hud-mass").textContent = computeMissileMass() + " KG";
+
+                const badge = document.getElementById("assembly-badge");
+                const launchBtn = document.getElementById("btn-launch");
+                const mainTxt = document.getElementById("launch-main-txt");
+                const subTxt = document.getElementById("launch-sub-txt");
+
+                blueprintGhostGroup.visible = count < 6 && sim.phase === "ASSEMBLY";
+
+                if (count === 6) {
+                    badge.textContent = "ĐÃ LẮP ĐỦ (6/6) • SẴN SÀNG";
+                    badge.classList.add("ready");
+                    launchBtn.classList.remove("locked");
+                    mainTxt.textContent = "🔥 KHAI HỎA ĐÁNH CHẶN";
+                    subTxt.textContent = "Nhấn [SPACE] hoặc Bấm để phóng tên lửa!";
+                    if (sim.phase === "ASSEMBLY") {
+                        document.getElementById("status-toast").textContent =
+                            "✅ Đã lắp ráp hoàn chỉnh 6/6 mô-đun tên lửa! Bấm [KHAI HỎA ĐÁNH CHẶN] hoặc phím [SPACE] để bắn mục tiêu di động.";
+                    }
+                } else {
+                    badge.textContent = "ĐANG LẮP RÁP (" + count + "/6)";
+                    badge.classList.remove("ready");
+                    launchBtn.classList.add("locked");
+                    mainTxt.textContent = "🔒 CẦN LẮP ĐỦ 6 BỘ PHẬN (" + count + "/6)";
+                    subTxt.textContent = "Hãy chọn đủ 6 mục ở bảng lắp ráp bên trái";
+                }
+            }
+
+            function installPart(slotName, partType) {
+                if (sim.phase !== "ASSEMBLY") {
+                    resetToLaunchPad();
+                }
+                sim.installed[slotName] = partType;
+                sim.slotSlideOffset[slotName] = 4.2;
+                buildModuleMesh(slotName, partType);
+
+                const slotIdx = REQUIRED_SLOTS.indexOf(slotName);
+                AudioEngine.playSnapSound(slotIdx);
+
+                const slotHeights = { engine: 0.8, tailFins: 1.6, fuselage: 3.6, strakes: 3.0, dacs: 7.3, nose: 9.5 };
+                const sy = (slotHeights[slotName] || 3) + 2.2;
+                for (let i = 0; i < 6; i++) {
+                    spawnSmoke(
+                        (Math.random() - 0.5) * 1.5,
+                        sy + (Math.random() - 0.5),
+                        (Math.random() - 0.5) * 1.5,
+                        (Math.random() - 0.5) * 4,
+                        (Math.random() - 0.5) * 4,
+                        (Math.random() - 0.5) * 4,
+                        0.4, 1.4, 0.35, 0x38bdf8
+                    );
+                }
+
+                const card = document.getElementById("slot-card-" + slotName);
+                const tag = document.getElementById("tag-" + slotName);
+                if (card) card.classList.add("installed");
+                if (tag) tag.textContent = "ĐÃ LẮP ✓";
+
+                document.querySelectorAll('.part-btn[data-slot="' + slotName + '"]').forEach(function (b) {
+                    b.classList.toggle("selected", b.getAttribute("data-type") === partType);
+                });
+
+                updateAssemblyUI();
+            }
+
+            document.querySelectorAll(".part-btn").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    const slot = btn.getAttribute("data-slot");
+                    const type = btn.getAttribute("data-type");
+                    installPart(slot, type);
+                });
+            });
+
+            document.getElementById("btn-clear-all").addEventListener("click", function () {
+                resetToLaunchPad();
+                REQUIRED_SLOTS.forEach(function (k) {
+                    sim.installed[k] = null;
+                    clearGroup(moduleGroups[k]);
+                    const card = document.getElementById("slot-card-" + k);
+                    const tag = document.getElementById("tag-" + k);
+                    if (card) card.classList.remove("installed");
+                    if (tag) tag.textContent = "CHƯA LẮP";
+                });
+                document.querySelectorAll(".part-btn").forEach(function (b) { b.classList.remove("selected"); });
+                updateAssemblyUI();
+                document.getElementById("status-toast").textContent =
+                    "🛠️ Đã tháo rời toàn bộ mô-đun. Hãy tự tay chọn từng bộ phận từ 1 đến 6 để lắp ráp tên lửa mới!";
+            });
+
+            function launchMissile() {
+                if (sim.phase !== "ASSEMBLY") return;
+                const count = getInstalledCount();
+                if (count < 6) {
+                    const missing = REQUIRED_SLOTS.filter(function (s) { return !sim.installed[s]; });
+                    document.getElementById("status-toast").textContent =
+                        "⚠️ Chưa thể phóng! Bạn còn thiếu " + missing.length + " bộ phận chưa lắp ở cột bên trái.";
+                    AudioEngine.playSnapSound(-2);
+                    return;
+                }
+
+                AudioEngine.init();
+                sim.phase = "FLIGHT";
+                sim.flightTime = 0;
+                sim.aiState = "SCANNING";
+                blueprintGhostGroup.visible = false;
+
+                const elevRad = (sim.launchElevationDeg * Math.PI) / 180;
+                sim.pos.set(0, 2.2, 0);
+                sim.dir.set(0, Math.sin(elevRad), -Math.cos(elevRad)).normalize();
+                sim.chaseCamDir.copy(sim.dir);
+                sim.camTheta = 0;
+                sim.camPhi = 0.16;
+                sim.camDist = 17.5;
+                sim.speed = sim.installed.strakes === "boosters" ? 58 : 46;
+                sim.vel.copy(sim.dir).multiplyScalar(sim.speed);
+
+                updateFpvHudLayout();
+
+                const isPlasma = sim.installed.engine === "plasma";
+                outerFlameMesh.material.color.setHex(isPlasma ? 0x38bdf8 : 0xf59e0b);
+                mainFlameGroup.visible = true;
+
+                for (let i = 0; i < 28; i++) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const spd = 4 + Math.random() * 14;
+                    spawnSmoke(
+                        Math.cos(ang) * 2,
+                        1.2 + Math.random() * 2,
+                        Math.sin(ang) * 2,
+                        Math.cos(ang) * spd,
+                        1 + Math.random() * 5,
+                        Math.sin(ang) * spd,
+                        2.5, 11.0, 1.4,
+                        i % 2 === 0 ? 0xfde68a : 0xcbd5e1
+                    );
+                }
+
+                document.getElementById("status-toast").textContent =
+                    "🚀 Tên lửa đã rời bệ! Bấm [C] hoặc [V] để chuyển đổi giữa các góc nhìn.";
+            }
+
+            function resetToLaunchPad() {
+                sim.phase = "ASSEMBLY";
+                sim.speed = 0;
+                sim.flightTime = 0;
+                sim.aiState = "STANDBY";
+                sim.pos.set(0, 2.2, 0);
+                updateFpvHudLayout();
+                mainFlameGroup.visible = false;
+                dacsJetLeft.visible = false;
+                dacsJetRight.visible = false;
+                dacsJetUp.visible = false;
+                dacsJetDown.visible = false;
+                AudioEngine.updateFlightLoop(false, false);
+                updateAssemblyUI();
+            }
+
+            function updateFpvHudLayout() {
+                const hudLayer = document.getElementById("main-hud-layer");
+                const isImmersiveFlight = (sim.camMode === 0 || sim.camMode === 1) && sim.phase === "FLIGHT";
+                if (hudLayer) {
+                    hudLayer.classList.toggle("fpv-flight-active", isImmersiveFlight);
+                }
+                if (moduleGroups.nose) {
+                    moduleGroups.nose.visible = !(sim.camMode === 1 && sim.phase !== "ASSEMBLY");
+                }
+            }
+
+            document.getElementById("btn-launch").addEventListener("click", launchMissile);
+            document.getElementById("btn-reset-pad").addEventListener("click", resetToLaunchPad);
+
+            document.getElementById("btn-angle").addEventListener("click", function () {
+                sim.launchElevationDeg = sim.launchElevationDeg === 52 ? 88 : 52;
+                document.getElementById("angle-txt").textContent =
+                    sim.launchElevationDeg === 52
+                        ? "📐 BỆ PHÓNG: NGHIÊNG 52° (ẢNH 1)"
+                        : "📐 BỆ PHÓNG: THẲNG ĐỨNG 88° (ẢNH 3 & 5)";
+            });
+
+            function toggleHoming() {
+                sim.autoHoming = !sim.autoHoming;
+                const btn = document.getElementById("btn-homing");
+                btn.classList.toggle("active", sim.autoHoming);
+                btn.querySelector("span").textContent = sim.autoHoming
+                    ? "🎯 RADAR DACS TỰ BÁM: BẬT"
+                    : "🎯 RADAR DACS TỰ BÁM: TẮT (LÁI TAY)";
+            }
+            document.getElementById("btn-homing").addEventListener("click", toggleHoming);
+
+            document.querySelectorAll(".tgt-btn[data-target]").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    document.querySelectorAll(".tgt-btn[data-target]").forEach(function (b) { b.classList.remove("active"); });
+                    btn.classList.add("active");
+                    sim.targetType = btn.getAttribute("data-target");
+                    sim.targetPhase = 0;
+                });
+            });
+
+            function cycleCameraView() {
+                sim.camMode = (sim.camMode + 1) % CAM_NAMES.length;
+                if (sim.camMode === 0 && sim.phase === "FLIGHT") {
+                    sim.camTheta = 0;
+                    sim.camPhi = 0.16;
+                }
+                const camBtn = document.getElementById("btn-cam");
+                const camTxt = document.getElementById("cam-txt");
+                if (camTxt) camTxt.textContent = CAM_NAMES[sim.camMode];
+                if (camBtn) camBtn.classList.toggle("active", sim.camMode === 1);
+                updateFpvHudLayout();
+            }
+
+            document.getElementById("btn-cam").addEventListener("click", cycleCameraView);
+
+            document.getElementById("btn-sound").addEventListener("click", function () {
+                AudioEngine.init();
+                AudioEngine.muted = !AudioEngine.muted;
+                document.getElementById("sound-txt").textContent = AudioEngine.muted ? "🔇 ĐÃ TẮT" : "🔊 ÂM THANH";
+            });
+
+            window.addEventListener("keydown", function (e) {
+                const c = e.code;
+                if (c === "KeyW" || c === "ArrowUp") keys.w = true;
+                if (c === "KeyS" || c === "ArrowDown") keys.s = true;
+                if (c === "KeyA" || c === "ArrowLeft") keys.a = true;
+                if (c === "KeyD" || c === "ArrowRight") keys.d = true;
+                if (c === "Space") { e.preventDefault(); launchMissile(); }
+                if (c === "KeyF") toggleHoming();
+                if (c === "KeyR") resetToLaunchPad();
+                if (c === "KeyC" || c === "KeyV") cycleCameraView();
+            });
+
+            window.addEventListener("keyup", function (e) {
+                const c = e.code;
+                if (c === "KeyW" || c === "ArrowUp") keys.w = false;
+                if (c === "KeyS" || c === "ArrowDown") keys.s = false;
+                if (c === "KeyA" || c === "ArrowLeft") keys.a = false;
+                if (c === "KeyD" || c === "ArrowRight") keys.d = false;
+            });
+
+            function bindHoldBtn(id, keyProp) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const down = function (ev) { ev.preventDefault(); keys[keyProp] = true; el.classList.add("pressed"); };
+                const up = function (ev) { ev.preventDefault(); keys[keyProp] = false; el.classList.remove("pressed"); };
+                el.addEventListener("mousedown", down);
+                el.addEventListener("mouseup", up);
+                el.addEventListener("mouseleave", up);
+                el.addEventListener("touchstart", down, { passive: false });
+                el.addEventListener("touchend", up, { passive: false });
+            }
+            bindHoldBtn("ctrl-pitch-up", "w");
+            bindHoldBtn("ctrl-pitch-down", "s");
+            bindHoldBtn("ctrl-yaw-left", "a");
+            bindHoldBtn("ctrl-yaw-right", "d");
+
+            activeCanvas.addEventListener("mousedown", function (e) {
+                sim.dragging = true;
+                sim.lastX = e.clientX;
+                sim.lastY = e.clientY;
+            });
+            window.addEventListener("mousemove", function (e) {
+                if (!sim.dragging) return;
+                const dx = e.clientX - sim.lastX;
+                const dy = e.clientY - sim.lastY;
+                sim.lastX = e.clientX;
+                sim.lastY = e.clientY;
+                sim.camTheta -= dx * 0.007;
+                sim.camPhi = Math.max(-0.45, Math.min(1.35, sim.camPhi + dy * 0.006));
+            });
+            window.addEventListener("mouseup", function () { sim.dragging = false; });
+            activeCanvas.addEventListener("wheel", function (e) {
+                sim.camDist = Math.max(8, Math.min(45, sim.camDist + e.deltaY * 0.015));
+            }, { passive: true });
+
+            let lastTouchDist = 0;
+            activeCanvas.addEventListener("touchstart", function (e) {
+                if (e.touches.length === 1) {
+                    sim.dragging = true;
+                    sim.lastX = e.touches[0].clientX;
+                    sim.lastY = e.touches[0].clientY;
+                } else if (e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    lastTouchDist = Math.hypot(dx, dy);
+                }
+            }, { passive: true });
+
+            window.addEventListener("touchmove", function (e) {
+                if (e.touches.length === 1 && sim.dragging) {
+                    const dx = e.touches[0].clientX - sim.lastX;
+                    const dy = e.touches[0].clientY - sim.lastY;
+                    sim.lastX = e.touches[0].clientX;
+                    sim.lastY = e.touches[0].clientY;
+                    sim.camTheta -= dx * 0.007;
+                    sim.camPhi = Math.max(-0.45, Math.min(1.35, sim.camPhi + dy * 0.006));
+                } else if (e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const dist = Math.hypot(dx, dy);
+                    if (lastTouchDist > 0) {
+                        const delta = lastTouchDist - dist;
+                        sim.camDist = Math.max(8, Math.min(45, sim.camDist + delta * 0.05));
+                    }
+                    lastTouchDist = dist;
+                }
+            }, { passive: true });
+
+            window.addEventListener("touchend", function () {
+                sim.dragging = false;
+                lastTouchDist = 0;
+            }, { passive: true });
+
+            function setDacsSvgIndicator(id, active) {
+                const el = document.getElementById(id);
+                if (el) el.setAttribute("opacity", active ? "1.0" : "0.18");
+            }
+
+            const aiHudCanvas = document.getElementById("ai-hud-canvas");
+            const aiCtx = aiHudCanvas.getContext("2d");
+            aiHudCanvas.width = window.innerWidth;
+            aiHudCanvas.height = window.innerHeight;
+
+            function project3DToScreen(worldVec, W, H) {
+                const v = worldVec.clone().project(camera);
+                const inFront = v.z >= -1 && v.z <= 1;
+                return {
+                    x: (v.x * 0.5 + 0.5) * W,
+                    y: (-v.y * 0.5 + 0.5) * H,
+                    inFront: inFront,
+                    rawX: v.x,
+                    rawY: v.y
+                };
+            }
+
+            function renderAISeekerHUD(elapsed, fireLeft, fireRight, fireUp, fireDown) {
+                const W = aiHudCanvas.width;
+                const H = aiHudCanvas.height;
+                aiCtx.clearRect(0, 0, W, H);
+
+                camera.updateMatrixWorld(true);
+                const isTailChase = sim.camMode === 0;
+                const isFpv = sim.camMode === 1;
+                const isTacticalCam = isTailChase || isFpv;
+                const isFlying = sim.phase === "FLIGHT";
+                const isExploded = sim.phase === "EXPLODED";
+
+                const distToTgt = sim.pos.distanceTo(sim.targetPos);
+                const leadTime = Math.min(distToTgt / Math.max(sim.speed, 45), 1.8);
+                const leadWorld = sim.targetPos.clone().addScaledVector(sim.targetVel, leadTime * 0.65);
+
+                const tgtScr = project3DToScreen(sim.targetPos, W, H);
+                const leadScr = project3DToScreen(leadWorld, W, H);
+
+                const classNames = {
+                    drone: "UAV_SUPERSONIC_FIGHTER",
+                    cruise: "AGM_CRUISE_MISSILE",
+                    convoy: "TEL_ARMORED_CONVOY"
+                };
+                const tgtLabel = classNames[sim.targetType] || "HOSTILE_TARGET";
+
+                if (isTacticalCam && (isFlying || isFpv || isExploded)) {
+                    const cx = W * 0.5;
+                    const cy = H * 0.5;
+
+                    if (isFpv) {
+                        const vig = aiCtx.createRadialGradient(cx, cy, Math.min(W, H) * 0.28, cx, cy, Math.max(W, H) * 0.65);
+                        vig.addColorStop(0, "rgba(0, 0, 0, 0)");
+                        vig.addColorStop(1, "rgba(2, 8, 22, 0.52)");
+                        aiCtx.fillStyle = vig;
+                        aiCtx.fillRect(0, 0, W, H);
+                    }
+
+                    const hudColor = sim.aiState === "TERMINAL_LOCK"
+                        ? "#f43f5e"
+                        : (sim.aiState === "TAIL_CHASE" ? "#22d3ee" : "#10b981");
+
+                    aiCtx.strokeStyle = hudColor;
+                    aiCtx.lineWidth = 1.4;
+                    aiCtx.beginPath();
+                    aiCtx.arc(cx, cy, isFpv ? 115 : 88, 0, Math.PI * 2);
+                    aiCtx.stroke();
+
+                    aiCtx.beginPath();
+                    aiCtx.moveTo(cx - 22, cy); aiCtx.lineTo(cx - 7, cy);
+                    aiCtx.moveTo(cx + 7, cy);  aiCtx.lineTo(cx + 22, cy);
+                    aiCtx.moveTo(cx, cy - 22); aiCtx.lineTo(cx, cy - 7);
+                    aiCtx.moveTo(cx, cy + 7);  aiCtx.lineTo(cx, cy + 22);
+                    aiCtx.stroke();
+
+                    aiCtx.font = "800 10.5px monospace";
+                    if (fireDown) {
+                        aiCtx.fillStyle = "#38bdf8";
+                        aiCtx.fillText("▲ DACS O₂ PITCH UP", cx - 52, cy - 128);
+                    }
+                    if (fireUp) {
+                        aiCtx.fillStyle = "#38bdf8";
+                        aiCtx.fillText("▼ DACS O₂ PITCH DOWN", cx - 58, cy + 138);
+                    }
+                    if (fireRight) {
+                        aiCtx.fillStyle = "#38bdf8";
+                        aiCtx.fillText("◀ DACS O₂ YAW LEFT", cx - 235, cy + 4);
+                    }
+                    if (fireLeft) {
+                        aiCtx.fillStyle = "#38bdf8";
+                        aiCtx.fillText("DACS O₂ YAW RIGHT ▶", cx + 128, cy + 4);
+                    }
+
+                    aiCtx.fillStyle = "rgba(5, 12, 28, 0.82)";
+                    aiCtx.strokeStyle = hudColor;
+                    aiCtx.lineWidth = 1.5;
+                    aiCtx.fillRect(cx - 225, 68, 450, 46);
+                    aiCtx.strokeRect(cx - 225, 68, 450, 46);
+
+                    aiCtx.fillStyle = hudColor;
+                    aiCtx.font = "900 11.5px monospace";
+                    const viewTag = isFpv ? "[1ST-PERSON FPV] " : "[3RD-PERSON TAIL CAM] ";
+                    const stateBanner = isExploded
+                        ? viewTag + "💥 KINETIC IMPACT CONFIRMED"
+                        : (sim.aiState === "TERMINAL_LOCK"
+                            ? viewTag + "⚠️ TERMINAL LOCK (<65M)"
+                            : (sim.aiState === "TAIL_CHASE"
+                                ? viewTag + "🎯 AI TAIL-CHASE — BÁM ĐUÔI"
+                                : viewTag + "🔍 ATR SEEKER — SCANNING"));
+                    aiCtx.fillText(stateBanner, cx - 210, 87);
+
+                    aiCtx.fillStyle = "#cbd5e1";
+                    aiCtx.font = "700 10.5px monospace";
+                    aiCtx.fillText(
+                        "DIST: " + distToTgt.toFixed(1) + "m | Vc: " + Math.round(sim.closureRate) + "m/s | TTI: " + sim.tti.toFixed(2) + "s | CONF: " + (sim.aiConfidence * 100).toFixed(1) + "%",
+                        cx - 210,
+                        105
+                    );
+                }
+
+                if (tgtScr.inFront && !isExploded) {
+                    const boxSize = Math.max(38, Math.min(180, 4800 / Math.max(distToTgt, 12)));
+                    const half = boxSize * 0.5;
+                    const bx = tgtScr.x;
+                    const by = tgtScr.y;
+
+                    const isTerminal = distToTgt < 68 && isFlying;
+                    const boxColor = isTerminal ? "#f43f5e" : "#22d3ee";
+
+                    aiCtx.fillStyle = isTerminal ? "rgba(244, 63, 94, 0.10)" : "rgba(34, 211, 238, 0.08)";
+                    aiCtx.fillRect(bx - half, by - half, boxSize, boxSize);
+
+                    const cLen = Math.max(10, boxSize * 0.28);
+                    aiCtx.strokeStyle = boxColor;
+                    aiCtx.lineWidth = 2.4;
+                    aiCtx.beginPath();
+                    aiCtx.moveTo(bx - half, by - half + cLen);
+                    aiCtx.lineTo(bx - half, by - half);
+                    aiCtx.lineTo(bx - half + cLen, by - half);
+                    aiCtx.moveTo(bx + half - cLen, by - half);
+                    aiCtx.lineTo(bx + half, by - half);
+                    aiCtx.lineTo(bx + half, by - half + cLen);
+                    aiCtx.moveTo(bx - half, by + half - cLen);
+                    aiCtx.lineTo(bx - half, by + half);
+                    aiCtx.lineTo(bx - half + cLen, by + half);
+                    aiCtx.moveTo(bx + half - cLen, by + half);
+                    aiCtx.lineTo(bx + half, by + half);
+                    aiCtx.lineTo(bx + half, by + half - cLen);
+                    aiCtx.stroke();
+
+                    aiCtx.beginPath();
+                    aiCtx.arc(bx, by, 4, 0, Math.PI * 2);
+                    aiCtx.stroke();
+
+                    aiCtx.fillStyle = "rgba(4, 10, 24, 0.85)";
+                    aiCtx.fillRect(bx - half, by - half - 32, 215, 28);
+                    aiCtx.strokeStyle = boxColor;
+                    aiCtx.lineWidth = 1;
+                    aiCtx.strokeRect(bx - half, by - half - 32, 215, 28);
+
+                    aiCtx.fillStyle = boxColor;
+                    aiCtx.font = "800 10.5px monospace";
+                    aiCtx.fillText(
+                        "[" + tgtLabel + "] " + (sim.aiConfidence * 100).toFixed(1) + "%",
+                        bx - half + 6,
+                        by - half - 19
+                    );
+                    aiCtx.fillStyle = "#f8fafc";
+                    aiCtx.font = "700 10px monospace";
+                    aiCtx.fillText(
+                        "RNG: " + distToTgt.toFixed(0) + "m | " + (isFlying ? (isTerminal ? "TERMINAL DIVE" : "AI TAIL-CHASING") : "LOCKED ON PAD"),
+                        bx - half + 6,
+                        by - half - 8
+                    );
+
+                    if (leadScr.inFront && isFlying) {
+                        aiCtx.strokeStyle = "#facc15";
+                        aiCtx.setLineDash([4, 4]);
+                        aiCtx.lineWidth = 1.5;
+                        aiCtx.beginPath();
+                        aiCtx.moveTo(bx, by);
+                        aiCtx.lineTo(leadScr.x, leadScr.y);
+                        aiCtx.stroke();
+                        aiCtx.setLineDash([]);
+
+                        aiCtx.beginPath();
+                        aiCtx.arc(leadScr.x, leadScr.y, 7, 0, Math.PI * 2);
+                        aiCtx.stroke();
+                        aiCtx.fillStyle = "#facc15";
+                        aiCtx.font = "700 9.5px monospace";
+                        aiCtx.fillText("AI LEAD PIP", leadScr.x + 10, leadScr.y + 3);
+                    }
+                } else if (isFpv && !isExploded) {
+                    const cx = W * 0.5;
+                    const cy = H * 0.5;
+                    const ang = Math.atan2(-(tgtScr.rawY), tgtScr.rawX);
+                    const edgeR = Math.min(W, H) * 0.34;
+                    const ax = cx + Math.cos(ang) * edgeR;
+                    const ay = cy + Math.sin(ang) * edgeR;
+
+                    aiCtx.fillStyle = "#f59e0b";
+                    aiCtx.beginPath();
+                    aiCtx.arc(ax, ay, 8, 0, Math.PI * 2);
+                    aiCtx.fill();
+                    aiCtx.font = "800 11px monospace";
+                    aiCtx.fillText("🎯 MỤC TIÊU (" + Math.round(distToTgt) + "m)", ax - 48, ay - 12);
+                }
+
+                if (isExploded && isFpv && sim.explodeTimer > 1.6) {
+                    const flashAlpha = Math.min(0.65, (sim.explodeTimer - 1.6) * 0.8);
+                    aiCtx.fillStyle = "rgba(255, 245, 235, " + flashAlpha + ")";
+                    aiCtx.fillRect(0, 0, W, H);
+                }
+            }
+
+            function renderSoftware3D(ctx) {
+                const W = ctx.canvas.width;
+                const H = ctx.canvas.height;
+                const fovScale = (H * 0.5) / Math.tan((50 * 0.5 * Math.PI) / 180);
+
+                const sky = ctx.createLinearGradient(0, 0, 0, H);
+                sky.addColorStop(0, "#050914");
+                sky.addColorStop(0.55, "#0f1e38");
+                sky.addColorStop(1, "#090f1d");
+                ctx.fillStyle = sky;
+                ctx.fillRect(0, 0, W, H);
+
+                camera.updateMatrixWorld(true);
+                const m = camera.matrixWorldInverse.elements;
+
+                function projectWorld(wx, wy, wz) {
+                    const rx = m[0] * wx + m[4] * wy + m[8] * wz + m[12];
+                    const ry = m[1] * wx + m[5] * wy + m[9] * wz + m[13];
+                    const rz = m[2] * wx + m[6] * wy + m[10] * wz + m[14];
+                    const depth = -rz;
+                    if (depth <= 0.2) return null;
+                    return {
+                        x: W * 0.5 + (rx * fovScale) / depth,
+                        y: H * 0.5 - (ry * fovScale) / depth,
+                        depth: depth,
+                        scale: fovScale / depth
+                    };
+                }
+
+                ctx.strokeStyle = "rgba(30, 58, 138, 0.35)";
+                ctx.lineWidth = 1;
+                for (let g = -120; g <= 120; g += 15) {
+                    const p1 = projectWorld(g, 0, -120);
+                    const p2 = projectWorld(g, 0, 120);
+                    if (p1 && p2) { ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+                    const p3 = projectWorld(-120, 0, g);
+                    const p4 = projectWorld(120, 0, g);
+                    if (p3 && p4) { ctx.beginPath(); ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y); ctx.stroke(); }
+                }
+
+                for (let i = 0; i < MAX_PARTICLES; i++) {
+                    const p = smokePool[i];
+                    if (!p.active) continue;
+                    const sp = projectWorld(p.sprite.position.x, p.sprite.position.y, p.sprite.position.z);
+                    if (!sp) continue;
+                    const r = Math.max(3, sp.scale * p.sprite.scale.x * 0.48);
+                    const alpha = p.sprite.material.opacity;
+                    const col = p.sprite.material.color;
+                    const grad = ctx.createRadialGradient(sp.x, sp.y, 1, sp.x, sp.y, r);
+                    const rgb = Math.round(col.r * 255) + "," + Math.round(col.g * 255) + "," + Math.round(col.b * 255);
+                    grad.addColorStop(0, "rgba(" + rgb + "," + alpha + ")");
+                    grad.addColorStop(1, "rgba(" + rgb + ",0)");
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                const tp = projectWorld(sim.targetPos.x, sim.targetPos.y, sim.targetPos.z);
+                if (tp) {
+                    const tr = Math.max(8, tp.scale * 2.2);
+                    ctx.strokeStyle = "#f43f5e";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(tp.x, tp.y - tr);
+                    ctx.lineTo(tp.x + tr, tp.y);
+                    ctx.lineTo(tp.x, tp.y + tr);
+                    ctx.lineTo(tp.x - tr, tp.y);
+                    ctx.closePath();
+                    ctx.stroke();
+
+                    ctx.fillStyle = "#fff";
+                    ctx.font = "bold 11px sans-serif";
+                    ctx.fillText("🎯 MỤC TIÊU DI ĐỘNG", tp.x - 48, tp.y - tr - 6);
+                }
+
+                missileRoot.updateMatrixWorld(true);
+                function projectMissileLocal(lx, ly, lz) {
+                    const v = new THREE.Vector3(lx, ly, lz).applyMatrix4(missileRoot.matrixWorld);
+                    return projectWorld(v.x, v.y, v.z);
+                }
+
+                const pBase = projectMissileLocal(0, 0, 0);
+                const pTip = projectMissileLocal(0, 10.6, 0);
+                if (pBase && pTip && getInstalledCount() < 6 && sim.phase === "ASSEMBLY") {
+                    ctx.strokeStyle = "rgba(34, 211, 238, 0.45)";
+                    ctx.setLineDash([5, 5]);
+                    ctx.lineWidth = Math.max(8, pBase.scale * 0.8);
+                    ctx.beginPath();
+                    ctx.moveTo(pBase.x, pBase.y);
+                    ctx.lineTo(pTip.x, pTip.y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                function drawSegment(y0, y1, radius, colorHex) {
+                    const a = projectMissileLocal(0, y0, 0);
+                    const b = projectMissileLocal(0, y1, 0);
+                    if (!a || !b) return;
+                    ctx.strokeStyle = colorHex;
+                    ctx.lineWidth = Math.max(4, a.scale * radius * 2);
+                    ctx.lineCap = "butt";
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.stroke();
+                }
+
+                if (sim.installed.engine) drawSegment(0, 1.2, 0.4, "#1e293b");
+                if (sim.installed.fuselage) drawSegment(1.2, 6.0, 0.42, sim.installed.fuselage === "white" ? "#f8fafc" : "#475569");
+                if (sim.installed.dacs) drawSegment(6.0, 8.4, 0.42, sim.installed.dacs === "canard" ? "#9a3412" : "#cbd5e1");
+                if (sim.installed.nose) drawSegment(8.4, 10.6, 0.25, sim.installed.nose === "redOgive" ? "#ef4444" : "#e2d9c8");
+
+                if (mainFlameGroup.visible) {
+                    drawSegment(-8.5, 0, 0.55, sim.installed.engine === "plasma" ? "#38bdf8" : "#f59e0b");
+                    drawSegment(-5.0, 0, 0.26, "#ffffff");
+                }
+            }
+
+            const clock = new THREE.Clock();
+            const upAxis = new THREE.Vector3(0, 1, 0);
+            const tempQuat = new THREE.Quaternion();
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                const dt = Math.min(clock.getDelta(), 0.05);
+                const elapsed = clock.getElapsedTime();
+
+                sim.targetPhase += dt;
+                if (sim.targetType === "drone") {
+                    const tx = Math.sin(sim.targetPhase * 0.48) * 145;
+                    const ty = 68 + Math.cos(sim.targetPhase * 0.75) * 18;
+                    const tz = -210 + Math.sin(sim.targetPhase * 0.35) * 55;
+                    sim.targetVel.set(tx - sim.targetPos.x, ty - sim.targetPos.y, tz - sim.targetPos.z).divideScalar(Math.max(dt, 0.001));
+                    sim.targetPos.set(tx, ty, tz);
+                } else if (sim.targetType === "cruise") {
+                    const tx = Math.cos(sim.targetPhase * 0.72) * 165;
+                    const ty = 28 + Math.sin(sim.targetPhase * 1.4) * 9;
+                    const tz = -175 + Math.sin(sim.targetPhase * 0.6) * 65;
+                    sim.targetVel.set(tx - sim.targetPos.x, ty - sim.targetPos.y, tz - sim.targetPos.z).divideScalar(Math.max(dt, 0.001));
+                    sim.targetPos.set(tx, ty, tz);
+                } else {
+                    const tx = ((sim.targetPhase * 22 + 160) % 320) - 160;
+                    const ty = 1.6;
+                    const tz = -155;
+                    sim.targetVel.set(22, 0, 0);
+                    sim.targetPos.set(tx, ty, tz);
+                }
+
+                targetRoot.position.copy(sim.targetPos);
+                if (sim.targetVel.lengthSq() > 0.1) {
+                    const lookTarget = sim.targetPos.clone().add(sim.targetVel);
+                    targetRoot.lookAt(lookTarget);
+                }
+                targetLockRing.rotation.z = elapsed * 2.5;
+                tgtAfterburner.scale.set(
+                    0.85 + Math.random() * 0.3,
+                    0.85 + Math.random() * 0.35,
+                    0.85 + Math.random() * 0.3
+                );
+
+                if (Math.random() < 0.45) {
+                    spawnSmoke(sim.targetPos.x, sim.targetPos.y, sim.targetPos.z, 0, 0.5, 0, 0.8, 2.6, 0.6, 0x94a3b8);
+                }
+
+                REQUIRED_SLOTS.forEach(function (k) {
+                    if (sim.slotSlideOffset[k] > 0.005) {
+                        sim.slotSlideOffset[k] *= Math.pow(0.01, dt);
+                        moduleGroups[k].position.x = sim.slotSlideOffset[k];
+                    } else {
+                        moduleGroups[k].position.x = 0;
+                    }
+                });
+
+                const elevRad = (sim.launchElevationDeg * Math.PI) / 180;
+                const railTiltX = -(Math.PI / 2 - elevRad);
+                launcherPivot.rotation.x = railTiltX;
+
+                let fireUp = false, fireDown = false, fireLeft = false, fireRight = false;
+
+                if (sim.phase === "ASSEMBLY") {
+                    sim.pos.set(0, 2.2, 0);
+                    missileRoot.position.copy(sim.pos);
+                    missileRoot.rotation.set(railTiltX, 0, 0);
+                    document.getElementById("hud-mach").textContent = "0.0 M";
+                    const padDist = Math.round(sim.pos.distanceTo(sim.targetPos));
+                    document.getElementById("hud-dist").textContent = padDist + " M";
+                } else if (sim.phase === "FLIGHT") {
+                    sim.flightTime += dt;
+
+                    const maxSpd = sim.installed.engine === "plasma" ? 118 : 98;
+                    sim.speed = Math.min(maxSpd, sim.speed + 42 * dt);
+
+                    const rightVec = new THREE.Vector3().crossVectors(sim.dir, upAxis).normalize();
+                    if (rightVec.lengthSq() < 0.001) rightVec.set(1, 0, 0);
+                    const localUpVec = new THREE.Vector3().crossVectors(rightVec, sim.dir).normalize();
+
+                    const turnRate = sim.installed.tailFins === "tactical" ? 3.1 : 2.55;
+
+                    if (keys.w) {
+                        sim.dir.addScaledVector(localUpVec, turnRate * dt);
+                        fireDown = true;
+                    }
+                    if (keys.s) {
+                        sim.dir.addScaledVector(localUpVec, -turnRate * dt);
+                        fireUp = true;
+                    }
+                    if (keys.a) {
+                        sim.dir.addScaledVector(rightVec, -turnRate * dt);
+                        fireRight = true;
+                    }
+                    if (keys.d) {
+                        sim.dir.addScaledVector(rightVec, turnRate * dt);
+                        fireLeft = true;
+                    }
+
+                    const distToTgt = sim.pos.distanceTo(sim.targetPos);
+                    const relVel = sim.vel.clone().sub(sim.targetVel);
+                    sim.closureRate = Math.max(15, relVel.length());
+                    sim.tti = distToTgt / sim.closureRate;
+                    sim.aiConfidence = Math.min(0.998, 0.96 + Math.sin(elapsed * 7) * 0.015 + (1 / Math.max(distToTgt, 10)));
+
+                    if (sim.autoHoming && !keys.w && !keys.s && !keys.a && !keys.d) {
+                        const tgtDir = sim.targetVel.clone().normalize();
+                        let aimPoint;
+
+                        if (sim.flightTime < 0.45) {
+                            sim.aiState = "SCANNING";
+                            aimPoint = sim.targetPos.clone().addScaledVector(tgtDir, -38);
+                        } else if (distToTgt > 65 && sim.flightTime < 2.2) {
+                            sim.aiState = "TAIL_CHASE";
+                            const tailBehindDist = Math.min(34, (distToTgt - 45) * 0.55);
+                            aimPoint = sim.targetPos.clone()
+                                .sub(tgtDir.multiplyScalar(Math.max(0, tailBehindDist)))
+                                .add(new THREE.Vector3(0, 2.2, 0));
+                        } else {
+                            sim.aiState = "TERMINAL_LOCK";
+                            const timeToHit = distToTgt / Math.max(sim.speed, 50);
+                            aimPoint = sim.targetPos.clone().addScaledVector(sim.targetVel, Math.min(timeToHit * 0.48, 0.9));
+                        }
+
+                        const desiredDir = aimPoint.sub(sim.pos).normalize();
+                        const pitchErr = desiredDir.dot(localUpVec);
+                        const yawErr = desiredDir.dot(rightVec);
+                        const gain = sim.aiState === "TERMINAL_LOCK" ? 5.8 : 4.6;
+
+                        if (Math.abs(pitchErr) > 0.012) {
+                            sim.dir.addScaledVector(localUpVec, Math.sign(pitchErr) * Math.min(Math.abs(pitchErr) * gain, turnRate) * dt);
+                            if (pitchErr > 0) fireDown = true; else fireUp = true;
+                        }
+                        if (Math.abs(yawErr) > 0.012) {
+                            sim.dir.addScaledVector(rightVec, Math.sign(yawErr) * Math.min(Math.abs(yawErr) * gain, turnRate) * dt);
+                            if (yawErr > 0) fireLeft = true; else fireRight = true;
+                        }
+                    }
+
+                    sim.dir.normalize();
+                    sim.vel.copy(sim.dir).multiplyScalar(sim.speed);
+                    sim.pos.addScaledVector(sim.vel, dt);
+
+                    tempQuat.setFromUnitVectors(upAxis, sim.dir);
+                    missileRoot.quaternion.copy(tempQuat);
+                    missileRoot.position.copy(sim.pos);
+
+                    const flameScale = 0.88 + Math.random() * 0.28;
+                    mainFlameGroup.scale.set(flameScale, 0.9 + Math.random() * 0.3, flameScale);
+
+                    const tailWorldPos = sim.pos.clone().addScaledVector(sim.dir, -1.2);
+                    const isPlasma = sim.installed.engine === "plasma";
+                    for (let s = 0; s < 3; s++) {
+                        spawnSmoke(
+                            tailWorldPos.x + (Math.random() - 0.5) * 0.6,
+                            tailWorldPos.y + (Math.random() - 0.5) * 0.6,
+                            tailWorldPos.z + (Math.random() - 0.5) * 0.6,
+                            -sim.dir.x * 12 + (Math.random() - 0.5) * 4,
+                            -sim.dir.y * 12 + (Math.random() - 0.5) * 4,
+                            -sim.dir.z * 12 + (Math.random() - 0.5) * 4,
+                            1.3, 6.8, 1.35,
+                            s === 0 ? (isPlasma ? 0xbae6fd : 0xfde047) : 0xe2e8f0
+                        );
+                    }
+
+                    if (fireLeft || fireRight || fireUp || fireDown) {
+                        const dacsWorldPos = sim.pos.clone().addScaledVector(sim.dir, 7.35);
+                        spawnSmoke(
+                            dacsWorldPos.x, dacsWorldPos.y, dacsWorldPos.z,
+                            (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14,
+                            0.55, 2.4, 0.32, 0xe0f2fe
+                        );
+                    }
+
+                    const mach = (sim.speed / 24).toFixed(1);
+                    const curDist = Math.round(sim.pos.distanceTo(sim.targetPos));
+                    document.getElementById("hud-mach").textContent = mach + " M";
+                    document.getElementById("hud-dist").textContent = curDist + " M";
+
+                    if (curDist < 9.5) {
+                        sim.phase = "EXPLODED";
+                        sim.aiState = "IMPACT";
+                        sim.lastImpactPos.copy(sim.targetPos);
+                        sim.explodeTimer = 2.4;
+                        sim.interceptCount++;
+                        document.getElementById("hud-hits").textContent = sim.interceptCount;
+                        mainFlameGroup.visible = false;
+                        AudioEngine.playExplosionSound();
+
+                        for (let e = 0; e < 45; e++) {
+                            const vx = (Math.random() - 0.5) * 42;
+                            const vy = (Math.random() - 0.5) * 42;
+                            const vz = (Math.random() - 0.5) * 42;
+                            const col = e % 3 === 0 ? 0xffffff : (e % 3 === 1 ? 0xf97316 : 0xef4444);
+                            spawnSmoke(sim.targetPos.x, sim.targetPos.y, sim.targetPos.z, vx, vy, vz, 3.0, 14.0, 1.5, col);
+                        }
+
+                        document.getElementById("status-toast").textContent =
+                            "💥 [AI SEEKER IMPACT] Đã bám đuôi và va chạm nổ tung mục tiêu di động (#" + sim.interceptCount + ")!";
+                    } else if (sim.pos.y < -2 || sim.pos.length() > 950) {
+                        resetToLaunchPad();
+                    }
+                } else if (sim.phase === "EXPLODED") {
+                    sim.explodeTimer -= dt;
+                    if (sim.explodeTimer <= 0) {
+                        resetToLaunchPad();
+                    }
+                }
+
+                dacsJetLeft.visible = fireLeft;
+                dacsJetRight.visible = fireRight;
+                dacsJetUp.visible = fireUp;
+                dacsJetDown.visible = fireDown;
+
+                setDacsSvgIndicator("dacs-svg-left", fireLeft);
+                setDacsSvgIndicator("dacs-svg-right", fireRight);
+                setDacsSvgIndicator("dacs-svg-up", fireUp);
+                setDacsSvgIndicator("dacs-svg-down", fireDown);
+
+                AudioEngine.updateFlightLoop(sim.phase === "FLIGHT", fireLeft || fireRight || fireUp || fireDown);
+
+                for (let i = 0; i < MAX_PARTICLES; i++) {
+                    const p = smokePool[i];
+                    if (!p.active) continue;
+                    p.age += dt;
+                    if (p.age >= p.maxAge) {
+                        p.active = false;
+                        p.sprite.visible = false;
+                        continue;
+                    }
+                    const t = p.age / p.maxAge;
+                    p.sprite.position.x += p.vx * dt;
+                    p.sprite.position.y += p.vy * dt;
+                    p.sprite.position.z += p.vz * dt;
+                    const sc = p.startScale + (p.endScale - p.startScale) * t;
+                    p.sprite.scale.set(sc, sc, 1);
+                    p.sprite.material.opacity = (1 - t) * 0.72;
+                }
+
+                const focusPoint = sim.phase === "ASSEMBLY"
+                    ? new THREE.Vector3(0, 5.2, 0)
+                    : sim.pos.clone().addScaledVector(sim.dir, 4.5);
+
+                if (sim.camMode === 0) { // GÓC NHÌN THỨ 3 BÁM ĐUÔI TÊN LỬA (STANDARD COMBAT CHASE CAMERA)
+                    if (sim.phase === "ASSEMBLY") {
+                        const cx = focusPoint.x + Math.sin(sim.camTheta) * Math.cos(sim.camPhi) * sim.camDist;
+                        const cy = Math.max(1.4, focusPoint.y + Math.sin(sim.camPhi) * sim.camDist);
+                        const cz = focusPoint.z + Math.cos(sim.camTheta) * Math.cos(sim.camPhi) * sim.camDist;
+                        camera.position.lerp(new THREE.Vector3(cx, cy, cz), Math.min(1, dt * 10.0));
+                        camera.lookAt(focusPoint);
+                        camera.up.set(0, 1, 0);
+                    } else if (sim.phase === "FLIGHT") {
+                        // 1. Trọng tâm thực tế của tên lửa (Visual Center of Missile Mass)
+                        const missileCenter = sim.pos.clone().addScaledVector(sim.dir, 4.5);
+
+                        // 2. Trích xuất hệ trục tọa độ 3D cục bộ của tên lửa (Zero Gimbal Singularity)
+                        let missileUp = new THREE.Vector3(0, 0, 1).applyQuaternion(missileRoot.quaternion).normalize();
+                        if (missileUp.lengthSq() < 0.01 || Math.abs(missileUp.dot(sim.dir)) > 0.95) {
+                            const ref = Math.abs(sim.dir.y) < 0.92 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, -1);
+                            const r = new THREE.Vector3().crossVectors(sim.dir, ref).normalize();
+                            missileUp = new THREE.Vector3().crossVectors(r, sim.dir).normalize();
+                        }
+                        const missileRight = new THREE.Vector3().crossVectors(sim.dir, missileUp).normalize();
+
+                        // 3. Bố cục góc nhìn thứ 3 chuẩn (Standard 3rd-Person Distance & Elevation)
+                        const userYaw = sim.camTheta || 0;
+                        const userPitch = Math.max(-0.4, Math.min(1.2, sim.camPhi !== undefined ? sim.camPhi : 0.16));
+                        const chaseDist = Math.max(12.0, Math.min(32.0, sim.camDist || 17.5));
+                        const baseElev = 3.2;
+
+                        const cy = Math.cos(userYaw);
+                        const sy = Math.sin(userYaw);
+                        const cp = Math.cos(userPitch);
+                        const sp = Math.sin(userPitch);
+
+                        // Vị trí camera lùi sau đuôi và nâng cao góc nhìn chuẩn Ace Combat / GTA / War Thunder
+                        const camOffset = new THREE.Vector3()
+                            .addScaledVector(sim.dir, -chaseDist * cp * cy)
+                            .addScaledVector(missileRight, chaseDist * cp * sy)
+                            .addScaledVector(missileUp, (chaseDist * sp) + baseElev);
+
+                        const desiredCamPos = missileCenter.clone().add(camOffset);
+
+                        // Nội suy giảm chấn chống giật, tạo quán tính điện ảnh mượt mà (Damped Spring)
+                        if (camera.position.lengthSq() < 1.0) {
+                            camera.position.copy(desiredCamPos);
+                        } else {
+                            camera.position.lerp(desiredCamPos, Math.min(1, dt * 10.0));
+                        }
+
+                        // 4. Điểm nhìn chuẩn: Nhìn thẳng phía trước theo hướng tên lửa bay
+                        // Đặt tên lửa ở 1/3 dưới giữa màn hình, thấy rõ đuôi lửa và không phận mục tiêu
+                        const lookTarget = missileCenter.clone()
+                            .addScaledVector(sim.dir, 20.0)
+                            .addScaledVector(missileUp, 0.6);
+                        camera.lookAt(lookTarget);
+
+                        // 5. Nghiêng camera theo góc lượn/quay của tên lửa (Dynamic Banking Horizon)
+                        camera.up.lerp(missileUp, Math.min(1, dt * 6.0)).normalize();
+                    } else {
+                        // Khi đánh chặn mục tiêu phát nổ: Quay chậm giật lùi điện ảnh
+                        const impactCamPos = sim.lastImpactPos.clone()
+                            .addScaledVector(sim.dir, -28)
+                            .add(new THREE.Vector3(0, 9, 0));
+                        camera.position.lerp(impactCamPos, Math.min(1, dt * 5.0));
+                        camera.lookAt(sim.lastImpactPos);
+                        camera.up.set(0, 1, 0);
+                    }
+                } else if (sim.camMode === 1) {
+                    if (sim.phase === "ASSEMBLY") {
+                        const padNosePos = sim.pos.clone().add(new THREE.Vector3(0, 9.8, 0));
+                        camera.position.copy(padNosePos);
+                        camera.lookAt(sim.targetPos);
+                    } else if (sim.phase === "FLIGHT") {
+                        const noseWorldPos = sim.pos.clone().addScaledVector(sim.dir, 9.4);
+                        camera.position.copy(noseWorldPos);
+                        const forwardLook = noseWorldPos.clone().addScaledVector(sim.dir, 60);
+                        const gimbalLook = forwardLook.lerp(sim.targetPos, 0.38);
+                        camera.lookAt(gimbalLook);
+                    } else {
+                        camera.position.copy(sim.lastImpactPos).add(new THREE.Vector3(0, 6, 26));
+                        camera.lookAt(sim.lastImpactPos);
+                    }
+                } else if (sim.camMode === 2) {
+                    const cx = focusPoint.x + Math.sin(sim.camTheta) * Math.cos(sim.camPhi) * sim.camDist;
+                    const cy = Math.max(1.2, focusPoint.y + Math.sin(sim.camPhi) * sim.camDist);
+                    const cz = focusPoint.z + Math.cos(sim.camTheta) * Math.cos(sim.camPhi) * sim.camDist;
+                    camera.position.set(cx, cy, cz);
+                    camera.lookAt(focusPoint);
+                } else {
+                    const sideOffset = new THREE.Vector3(16, 1.5, 0);
+                    camera.position.copy(focusPoint).add(sideOffset);
+                    camera.lookAt(focusPoint);
+                }
+
+                if (!useSoftware3D && renderer) {
+                    renderer.render(scene, camera);
+                } else if (fallbackCtx) {
+                    renderSoftware3D(fallbackCtx);
+                }
+                renderAISeekerHUD(elapsed, fireLeft, fireRight, fireUp, fireDown);
+            }
+
+            window.addEventListener("resize", function () {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                aiHudCanvas.width = window.innerWidth;
+                aiHudCanvas.height = window.innerHeight;
+                if (!useSoftware3D && renderer) {
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                } else if (fallbackCtx) {
+                    fallbackCtx.canvas.width = window.innerWidth;
+                    fallbackCtx.canvas.height = window.innerHeight;
+                }
+            });
+
+            updateAssemblyUI();
+            animate();
+        })();
+    </script>
+</body>
+</html>

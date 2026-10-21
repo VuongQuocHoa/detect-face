@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+*.log
+scratch/
+tools/
+*.jar
+data/cache/
+data/chroma/
+data/models/
+data/ov_cache/

@@ -1,5 +1,12 @@
 # InsightFace Recognition API
 
+<div align="center">
+
+[![Live Demo on Render](https://img.shields.io/badge/🌐_Live_Demo-Render-00f0ff?style=for-the-badge&logo=render&logoColor=white)](https://vuongquochoa-detect-face.onrender.com/)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/VuongQuocHoa/detect-face)
+
+</div>
+
 Production-oriented FastAPI service for registering and recognizing faces with
 InsightFace and persistent ChromaDB storage.
 

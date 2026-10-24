@@ -1847,6 +1847,9 @@
           </div>
           <div id="photoZoomMeta" style="font-size:12px; color:var(--muted); font-family:'Chakra Petch';"></div>
         </div>
+      </div>
+    </div>
+
     <!-- MODAL 4: Server Config Modal -->
     <div id="serverConfigModal" class="cyber-modal-overlay">
       <div class="cyber-modal-card" style="max-width:460px;">
@@ -2805,6 +2808,18 @@
 
     // --- Dynamic Multi-Environment Server Host Resolution (PC / Mobile APK / LAN) ---
     function getActiveServerHost() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const serverParam = urlParams.get("server") || urlParams.get("host");
+        if (serverParam && serverParam.trim()) {
+          const cleanParam = serverParam.trim().replace(/^https?:\/\//i, "").replace(/^wss?:\/\//i, "").replace(/\/+$/, "");
+          if (cleanParam) {
+            localStorage.setItem("ai_server_host", cleanParam);
+            return cleanParam;
+          }
+        }
+      } catch (e) {}
+
       const stored = localStorage.getItem("ai_server_host");
       if (stored && stored.trim()) return stored.trim();
       // On mobile APK or local file:/// scheme, default to PC LAN IP
@@ -4426,6 +4441,21 @@
         if (input) input.value = getActiveServerHost();
         if (status) status.textContent = "";
         modal.style.display = "flex";
+        modal.style.zIndex = "999999";
+      } else {
+        const cur = getActiveServerHost();
+        const entered = window.prompt("Nhập địa chỉ máy chủ AI (Cloudflare Tunnel / IP:PORT):", cur);
+        if (entered !== null) {
+          const clean = entered.trim().replace(/^https?:\/\//i, "").replace(/^wss?:\/\//i, "").replace(/\/+$/, "");
+          if (clean) {
+            localStorage.setItem("ai_server_host", clean);
+          } else {
+            localStorage.removeItem("ai_server_host");
+          }
+          updateServerHostBadge();
+          if (ws) { try { ws.close(); } catch(e){} ws = null; }
+          initWebSocket();
+        }
       }
     };
 

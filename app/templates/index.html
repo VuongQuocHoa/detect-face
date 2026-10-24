@@ -1479,7 +1479,7 @@
             <button class="btn" id="startCamBtn">▶ BẬT CAMERA</button>
             <button class="btn btn-pink" id="stopCamBtn" disabled>⏹ DỪNG</button>
             <button class="btn" id="flipCamBtn" title="Chuyển đổi Camera Trước / Sau">🔄 ĐỔI CAMERA</button>
-            <button class="btn" id="serverConfigBtn" title="Cấu hình địa chỉ IP máy chủ AI">🌐 SERVER: <span id="serverHostBadge">TỰ ĐỘNG</span></button>
+            <button class="btn" id="serverConfigBtn" onclick="openServerConfigModal()" title="Cấu hình địa chỉ IP máy chủ AI">🌐 SERVER: <span id="serverHostBadge">TỰ ĐỘNG</span></button>
             <button class="btn btn-green" id="snapRegisterBtn" disabled title="Chụp khung hình hiện tại để đăng ký">📸
               CHỤP ĐỂ ĐĂNG KÝ</button>
 
@@ -1846,6 +1846,28 @@
             <img id="photoZoomImg" src="" alt="Face Zoom" style="width:100%; height:auto; display:block; object-fit:contain;">
           </div>
           <div id="photoZoomMeta" style="font-size:12px; color:var(--muted); font-family:'Chakra Petch';"></div>
+        </div>
+    <!-- MODAL 4: Server Config Modal -->
+    <div id="serverConfigModal" class="cyber-modal-overlay">
+      <div class="cyber-modal-card" style="max-width:460px;">
+        <div class="cyber-modal-head">
+          <span class="cyber-modal-title" style="color:var(--cyan);">⚙ CẤU HÌNH MÁY CHỦ AI (SERVER IP)</span>
+          <button class="cyber-modal-close" id="closeServerModalBtn" onclick="closeServerConfigModal()">&times;</button>
+        </div>
+        <div class="cyber-modal-body">
+          <p style="font-size:12px; color:#a2b4c7; line-height:1.5; margin:0 0 14px;">
+            Nhập địa chỉ máy chủ AI (Cloudflare Tunnel, LAN IP hoặc tên miền riêng):
+          </p>
+          <div class="form-group" style="margin-bottom:14px; text-align:left;">
+            <label class="form-label" style="font:700 11px 'Orbitron'; color:var(--text-dim); display:block; margin-bottom:6px;">ĐỊA CHỈ HOST / IP &amp; PORT:</label>
+            <input type="text" id="inputServerHost" placeholder="VD: placing-clients-anchor-wearing.trycloudflare.com hoặc 10.0.97.87:8000" class="form-control" style="width:100%; font-family:'Chakra Petch', monospace;">
+          </div>
+          <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <button class="btn btn-green" id="saveServerBtn" style="flex:1;">✔ LƯU &amp; KẾT NỐI</button>
+            <button class="btn" id="resetServerBtn" style="padding:0 14px;">MẶC ĐỊNH</button>
+          </div>
+          <button class="btn" id="autoDiscoverBtn" style="width:100%; background:rgba(0,243,255,0.12); border:1px solid var(--cyan); color:var(--cyan); font-weight:700; padding:10px;">⚡ TỰ ĐỘNG DÒ TÌM MÁY CHỦ (AUTO-DISCOVER)</button>
+          <div id="serverTestStatus" style="margin-top:10px; font-size:12px; text-align:center; min-height:18px; color:var(--text-dim); font-weight:600;"></div>
         </div>
       </div>
     </div>
@@ -4396,6 +4418,22 @@
     }
 
     // --- Cyberpunk Server Config Modal Handlers ---
+    window.openServerConfigModal = function() {
+      const modal = document.getElementById("serverConfigModal");
+      const input = document.getElementById("inputServerHost");
+      const status = document.getElementById("serverTestStatus");
+      if (modal) {
+        if (input) input.value = getActiveServerHost();
+        if (status) status.textContent = "";
+        modal.style.display = "flex";
+      }
+    };
+
+    window.closeServerConfigModal = function() {
+      const modal = document.getElementById("serverConfigModal");
+      if (modal) modal.style.display = "none";
+    };
+
     const serverConfigBtn = document.getElementById("serverConfigBtn");
     const serverConfigModal = document.getElementById("serverConfigModal");
     const closeServerModalBtn = document.getElementById("closeServerModalBtn");
@@ -4407,24 +4445,27 @@
     updateServerHostBadge();
 
     if (serverConfigBtn) {
-      serverConfigBtn.addEventListener("click", () => {
-        inputServerHost.value = getActiveServerHost();
-        serverTestStatus.textContent = "";
-        serverConfigModal.style.display = "flex";
-      });
+      serverConfigBtn.addEventListener("click", openServerConfigModal);
     }
     if (closeServerModalBtn) {
-      closeServerModalBtn.addEventListener("click", () => {
-        serverConfigModal.style.display = "none";
+      closeServerModalBtn.addEventListener("click", closeServerConfigModal);
+    }
+    if (serverConfigModal) {
+      serverConfigModal.addEventListener("click", (e) => {
+        if (e.target === serverConfigModal) closeServerConfigModal();
       });
     }
     if (resetServerBtn) {
       resetServerBtn.addEventListener("click", () => {
         localStorage.removeItem("ai_server_host");
         updateServerHostBadge();
-        inputServerHost.value = getActiveServerHost();
-        serverTestStatus.textContent = "✔ Đã đặt lại về Mặc định (Tự động nhận diện host)";
-        serverTestStatus.style.color = "var(--green)";
+        const input = document.getElementById("inputServerHost");
+        const status = document.getElementById("serverTestStatus");
+        if (input) input.value = getActiveServerHost();
+        if (status) {
+          status.textContent = "✔ Đã đặt lại về Mặc định (Tự động nhận diện host)";
+          status.style.color = "var(--green)";
+        }
         if (ws) {
           try { ws.close(); } catch (e) { }
           ws = null;
@@ -4434,7 +4475,10 @@
     }
     if (saveServerBtn) {
       saveServerBtn.addEventListener("click", async () => {
-        let val = inputServerHost.value.trim();
+        const input = document.getElementById("inputServerHost");
+        const status = document.getElementById("serverTestStatus");
+        if (!input) return;
+        let val = input.value.trim();
         val = val.replace(/^https?:\/\//i, "").replace(/^wss?:\/\//i, "").replace(/\/+$/, "");
         if (!val) {
           localStorage.removeItem("ai_server_host");
@@ -4442,25 +4486,33 @@
           localStorage.setItem("ai_server_host", val);
         }
         updateServerHostBadge();
-        serverTestStatus.textContent = "Đang kiểm tra kết nối tới: " + (val || "Mặc định") + "...";
-        serverTestStatus.style.color = "var(--cyan)";
+        if (status) {
+          status.textContent = "Đang kiểm tra kết nối tới: " + (val || "Mặc định") + "...";
+          status.style.color = "var(--cyan)";
+        }
 
         try {
           const testRes = await fetch(getServerUrl("/health"), { method: "GET" });
           if (testRes.ok) {
-            serverTestStatus.textContent = "✔ Kết nối thành công tới Server AI!";
-            serverTestStatus.style.color = "var(--green)";
+            if (status) {
+              status.textContent = "✔ Kết nối thành công tới Server AI!";
+              status.style.color = "var(--green)";
+            }
             showToast("Kết nối máy chủ thành công: " + (val || "127.0.0.1:8000"), "success");
             setTimeout(() => {
-              serverConfigModal.style.display = "none";
+              closeServerConfigModal();
             }, 1000);
           } else {
-            serverTestStatus.textContent = "⚠ Máy chủ phản hồi mã: " + testRes.status;
-            serverTestStatus.style.color = "var(--pink)";
+            if (status) {
+              status.textContent = "⚠ Máy chủ phản hồi mã: " + testRes.status;
+              status.style.color = "var(--pink)";
+            }
           }
         } catch (e) {
-          serverTestStatus.textContent = "✖ Không thể kết nối tới " + val + " (" + e.message + ")";
-          serverTestStatus.style.color = "var(--pink)";
+          if (status) {
+            status.textContent = "✖ Không thể kết nối tới " + val + " (" + e.message + ")";
+            status.style.color = "var(--pink)";
+          }
         }
 
         if (ws) {
@@ -4474,8 +4526,11 @@
     const autoDiscoverBtn = document.getElementById("autoDiscoverBtn");
     if (autoDiscoverBtn) {
       autoDiscoverBtn.addEventListener("click", () => {
-        serverTestStatus.textContent = "⚡ Đang phát gói tin UDP dò tìm máy chủ trên mạng LAN...";
-        serverTestStatus.style.color = "var(--cyan)";
+        const status = document.getElementById("serverTestStatus");
+        if (status) {
+          status.textContent = "⚡ Đang phát gói tin UDP dò tìm máy chủ trên mạng LAN...";
+          status.style.color = "var(--cyan)";
+        }
         triggerAutoDiscovery();
       });
     }
@@ -4487,76 +4542,6 @@
       }
     });
   </script>
-
-  <!-- CYBERPUNK SERVER CONFIGURATION MODAL (FOR ANDROID APK & LAN STREAMING) -->
-  <div id="serverConfigModal" style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(3,8,16,0.88); backdrop-filter:blur(10px); align-items:center; justify-content:center;">
-    <div style="background:linear-gradient(135deg, #0b1526, #060e1a); border:1px solid var(--cyan); box-shadow:0 0 35px rgba(0,243,255,0.35); border-radius:8px; width:92%; max-width:440px; padding:24px; position:relative;">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0,243,255,0.25); padding-bottom:12px; margin-bottom:16px;">
-        <span style="font:700 13px 'Orbitron'; color:var(--cyan); letter-spacing:0.1em;">⚙ CẤU HÌNH MÁY CHỦ AI (SERVER IP)</span>
-        <button id="closeServerModalBtn" style="background:none; border:none; color:var(--text-dim); font-size:24px; cursor:pointer; line-height:1;">&times;</button>
-      </div>
-      <p style="font-size:12px; color:#a2b4c7; line-height:1.5; margin-bottom:14px;">
-        Hệ thống tự động phát hiện máy chủ bằng gói tin UDP Broadcast. Bạn cũng có thể bấm nút tự động dò tìm hoặc nhập IP thủ công:
-      </p>
-      <div style="margin-bottom:16px;">
-        <label style="font:700 11px 'Orbitron'; color:var(--text-dim); display:block; margin-bottom:6px;">ĐỊA CHỈ HOST / IP &amp; PORT:</label>
-        <input type="text" id="inputServerHost" placeholder="VD: 10.0.97.87:8000" style="width:100%; box-sizing:border-box; padding:10px 14px; background:#040912; border:1px solid var(--border); border-radius:4px; color:#00f3ff; font-family:'Chakra Petch', monospace; font-size:14px; outline:none;">
-      </div>
-      <div style="display:flex; gap:10px;">
-        <button class="btn btn-green" id="saveServerBtn" style="flex:1;">LƯU &amp; KẾT NỐI</button>
-        <button class="btn" id="resetServerBtn" style="padding:0 14px;">MẶC ĐỊNH</button>
-      </div>
-      <button class="btn" id="autoDiscoverBtn" style="width:100%; margin-top:10px; background:rgba(0,243,255,0.12); border:1px solid var(--cyan); color:var(--cyan); font-weight:700; padding:10px;">⚡ TỰ ĐỘNG DÒ TÌM MÁY CHỦ (AUTO-DISCOVER)</button>
-      <div id="serverTestStatus" style="margin-top:12px; font-size:11px; text-align:center; min-height:16px; color:var(--text-dim);"></div>
-    </div>
-  </div>
-
-  <!-- MODAL PHÓNG TO ẢNH ĐẠI DIỆN KHUÔN MẶT -->
-  <div id="photoZoomModal" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(2,6,14,0.92); backdrop-filter:blur(10px); align-items:center; justify-content:center;">
-    <div style="background:#071224; border:1px solid var(--cyan); box-shadow:0 0 35px rgba(0,243,255,0.4); border-radius:8px; max-width:420px; width:92%; padding:20px; text-align:center; position:relative;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid rgba(0,243,255,0.2); padding-bottom:8px;">
-        <span id="photoZoomTitle" style="font:700 12px 'Orbitron'; color:var(--cyan); letter-spacing:0.08em;">ẢNH KHUÔN MẶT ĐÃ LƯU</span>
-        <button id="closePhotoZoomBtn" style="background:none; border:none; color:var(--muted); font-size:24px; cursor:pointer; line-height:1;">&times;</button>
-      </div>
-      <div style="width:100%; height:280px; display:flex; align-items:center; justify-content:center; background:#02060f; border-radius:4px; overflow:hidden; border:1px solid var(--line);">
-        <img id="photoZoomImg" src="" alt="Full face preview" style="max-width:100%; max-height:100%; object-fit:contain;">
-      </div>
-      <div id="photoZoomMeta" style="margin-top:12px; font-size:13px; color:var(--green); font-weight:700;"></div>
-    </div>
-  </div>
-
-  <!-- MODAL ĐỔI TÊN & CHUYỂN NGƯỜI LẠ THÀNH THÀNH VIÊN -->
-  <div id="convertStrangerModal" style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(2,6,14,0.92); backdrop-filter:blur(10px); align-items:center; justify-content:center;">
-    <div style="background:linear-gradient(135deg, #0b1526, #060e1a); border:1px solid var(--green); box-shadow:0 0 35px rgba(0,255,157,0.35); border-radius:8px; width:92%; max-width:440px; padding:24px; position:relative;">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(0,255,157,0.25); padding-bottom:12px; margin-bottom:16px;">
-        <span style="font:700 12px 'Orbitron'; color:var(--green); letter-spacing:0.08em;">🏷️ ĐỔI TÊN &amp; ĐĂNG KÝ THÀNH VIÊN</span>
-        <button id="closeConvertModalBtn" style="background:none; border:none; color:var(--muted); font-size:24px; cursor:pointer; line-height:1;">&times;</button>
-      </div>
-      <div style="display:flex; gap:14px; align-items:center; margin-bottom:16px; background:rgba(0,255,157,0.06); padding:10px; border-radius:4px; border:1px solid rgba(0,255,157,0.2);">
-        <img id="convertStrangerPhoto" src="" alt="Stranger face" style="width:64px; height:64px; border-radius:4px; object-fit:cover; border:1px solid var(--amber);">
-        <div style="text-align:left;">
-          <div style="font-size:11px; color:var(--amber); font-family:'Orbitron';" id="convertStrangerOldId">stranger_001</div>
-          <div style="font-size:14px; font-weight:700; color:#fff;" id="convertStrangerOldName">Người lạ #1</div>
-          <div style="font-size:11px; color:var(--muted);">Khuôn mặt này đã được ghi nhớ vector trong hệ thống</div>
-        </div>
-      </div>
-      <form id="convertStrangerForm">
-        <input type="hidden" id="convertOldId">
-        <div style="margin-bottom:14px; text-align:left;">
-          <label style="font:700 11px 'Orbitron'; color:var(--cyan); display:block; margin-bottom:6px;">HỌ VÀ TÊN MỚI:</label>
-          <input type="text" id="convertNewName" required placeholder="VD: Nguyễn Văn A" class="form-control">
-        </div>
-        <div style="margin-bottom:18px; text-align:left;">
-          <label style="font:700 11px 'Orbitron'; color:var(--cyan); display:block; margin-bottom:6px;">MÃ USER ID MỚI:</label>
-          <input type="text" id="convertNewId" required placeholder="VD: nv_001 hoặc user_a" class="form-control">
-        </div>
-        <div style="display:flex; gap:10px;">
-          <button type="submit" class="btn btn-green" style="flex:1;" id="submitConvertBtn">✔ LƯU VÀ CHUYỂN THÀNH VIÊN</button>
-          <button type="button" class="btn" id="cancelConvertBtn">HỦY</button>
-        </div>
-      </form>
-    </div>
-  </div>
 </body>
 
 </html>

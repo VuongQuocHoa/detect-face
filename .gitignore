@@ -6,8 +6,9 @@ venv/
 .env
 *.log
 scratch/
-tools/
-*.jar
+tools/*.exe
+tools/*.jar
+tools/android-sdk/
 data/cache/
 data/chroma/
 data/models/

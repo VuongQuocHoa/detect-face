@@ -2792,9 +2792,21 @@
       return window.location.host;
     }
 
+    function isSecureHost(host) {
+      if (window.location.protocol === "https:") return true;
+      if (!host) return false;
+      const lower = host.toLowerCase();
+      return (
+        lower.includes("trycloudflare.com") ||
+        lower.includes("ngrok") ||
+        lower.includes("onrender.com") ||
+        (!lower.includes(":") && !lower.includes("localhost") && !lower.startsWith("127.") && !lower.startsWith("10.") && !lower.startsWith("192.168."))
+      );
+    }
+
     function getServerUrl(path) {
       const host = getActiveServerHost();
-      const isHttps = window.location.protocol === "https:" && host === window.location.host;
+      const isHttps = isSecureHost(host);
       const protocol = isHttps ? "https://" : "http://";
       const cleanPath = path.startsWith("/") ? path : "/" + path;
       return `${protocol}${host}${cleanPath}`;
@@ -2802,7 +2814,7 @@
 
     function getWsUrl() {
       const host = getActiveServerHost();
-      const isWss = window.location.protocol === "https:" && host === window.location.host;
+      const isWss = isSecureHost(host);
       const protocol = isWss ? "wss://" : "ws://";
       return `${protocol}${host}/ws/recognize`;
     }

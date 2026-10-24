@@ -36,19 +36,17 @@ def print_hud_banner(tunnel_url):
 ==============================================================================
    NEURAL//VERIFY - AI RECOGNITION SERVER ONLINE (PUBLIC TUNNEL ACTIVATED)
 ==============================================================================
- [PUBLIC HTTPS / WSS DOMAIN]:
-   -> {tunnel_url}
+ [1. LINK TRỰC TIẾP TỐI ƯU 0ms (Full SSL HTTPS / WSS)]:
+    -> {tunnel_url}
 
- [CÁCH SỬ DỤNG NHẬN DIỆN]:
- 1. Cách trực tiếp (Khuyên dùng - Full tính năng):
-    Mở trình duyệt bất kỳ (PC / Điện thoại 4G / Mạng ngoài):
-    {tunnel_url}
+ [2. LINK RENDER TỰ ĐỘNG CẤU HÌNH (Tự kết nối, không cần cài đặt)]:
+    -> https://vuongquochoa-detect-face.onrender.com/?server={clean_host}
 
- 2. Cách kết nối qua Render (https://vuongquochoa-detect-face.onrender.com/):
-    - Vào Render: https://vuongquochoa-detect-face.onrender.com/
-    - Bấm nút: "⚙ CẤU HÌNH MÁY CHỦ AI"
+ [3. KẾT NỐI THỦ CÔNG (Nếu vào Render trực tiếp)]:
+    - Mở https://vuongquochoa-detect-face.onrender.com/
+    - Bấm nút: "🌐 SERVER: ..."
     - Nhập Host: {clean_host}
-    - Bấm "LƯU & KẾT NỐI" -> Hệ thống AI lập tức hoạt động!
+    - Bấm "LƯU & KẾT NỐI"
 ==============================================================================
  Nhấn Ctrl+C để dừng server.
 """
@@ -57,13 +55,24 @@ def print_hud_banner(tunnel_url):
 def main():
     print(">> Đang khởi động FastAPI Uvicorn Server trên cổng 8000...", flush=True)
     server_process = subprocess.Popen(
-        [VENV_PYTHON, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"],
+        [VENV_PYTHON, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"],
         cwd=PROJECT_DIR,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1
     )
+
+    def drain_server_output():
+        try:
+            for line in server_process.stdout:
+                if "ERROR" in line or "CRITICAL" in line:
+                    print(f"[SERVER] {line.strip()}", flush=True)
+        except Exception:
+            pass
+
+    server_thread = threading.Thread(target=drain_server_output, daemon=True)
+    server_thread.start()
 
     tunnel_url = None
     url_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
@@ -80,11 +89,14 @@ def main():
 
     def monitor_tunnel():
         nonlocal tunnel_url
-        for line in tunnel_process.stdout:
-            match = url_pattern.search(line)
-            if match and not tunnel_url:
-                tunnel_url = match.group(0)
-                print_hud_banner(tunnel_url)
+        try:
+            for line in tunnel_process.stdout:
+                match = url_pattern.search(line)
+                if match and not tunnel_url:
+                    tunnel_url = match.group(0)
+                    print_hud_banner(tunnel_url)
+        except Exception:
+            pass
 
     tunnel_thread = threading.Thread(target=monitor_tunnel, daemon=True)
     tunnel_thread.start()

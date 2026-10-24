@@ -3048,7 +3048,7 @@
         window.wsConnected = true;
         wsConsecutiveFailures = 0;
         inFlightCount = 0;
-        sendTimestamps = [];
+        sendTimestamps.length = 0;
         clearTimeout(inFlightWatchdog);
         const banner = document.getElementById("connectionStatusBanner");
         if (banner) banner.style.display = "none";
@@ -3102,7 +3102,7 @@
         wsConnected = false;
         window.wsConnected = false;
         inFlightCount = 0;
-        sendTimestamps = [];
+        sendTimestamps.length = 0;
         clearTimeout(inFlightWatchdog);
 
         const banner = document.getElementById("connectionStatusBanner");
@@ -3182,7 +3182,7 @@
     }
 
     const MAX_IN_FLIGHT = 3; // Pipelined continuous multi-frame streaming
-    const sendTimestamps = [];
+    let sendTimestamps = [];
 
     function scheduleNextFrame() {
       if (!stream) return;
